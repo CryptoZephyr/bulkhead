@@ -128,3 +128,19 @@ A first v3 factory (0x6b1f671a674ebe6d0bcfba235e9f4874e431626b) let the laptop r
 | Owner pays 3.00 during the raise | Spent, 17 fUSD left | 0xeb7904c3cfc807551c804f001005fa96b37f0efac67e9091dc16f34ba6491d31 |
 | Pilot tries to go above the ceiling | refused, AbovePolicy | |
 | The raise expires, no pilot action | blast radius 0.00 (rest 0.40 a day, 3.00 already spent today) | |
+
+## Live site end to end (21 November, round 26)
+
+Run against https://bulkhead-blush.vercel.app through its own APIs only (relay, pilot, pair). The production pilot key lives only on Vercel. Script: qorex-spike spikes/sdk/live-prod-pilot.mjs.
+
+| Step | Result | Transaction |
+|---|---|---|
+| Phone authorises a new v3 account, live relayer deploys it | account 0x6759AD2986A2CFABBC1be669c7eaad7c8d7382df | 0xba5720b66bd79ceadbb105dba3bf77dca1c9551f9c287e9602eceb46337641d6 |
+| Phone signs "add the pilot" (production pilot 0x4e21ed6743B7e8D169f6C09f5045D016B53f3888) | queued | 0x8c676d338cef880a0cc5acb73124edff2f90f600bd3f3e0d9e277cc56b044277 |
+| Live relayer finishes it after the delay | pilot set, blast radius 5.00 | 0xe39041dc9fa8fabcefd5f6c62e802045067b3fbf29ebbd1d0c4dc360eeb6507a |
+| Laptop saves quiet hours covering now, live pilot closes the wall | blast radius 0.30 | 0x500f34a27153fb88a5e77cae4040c98a7bfab17828789801d919cb7406d90f8a |
+| Ask for 4.00 during quiet hours | refused, sent to the phone | |
+| Stolen laptop tries to reopen the wall | refused | |
+| Stolen laptop tries 5.00 | held, 10.00 fUSD left, not sealed | 0xbe76fc8c5abb970e97993a7327d821dc97808c3b042ab410e98989a8e7c4b65a |
+| Move quiet hours away (daytime) | FAILED: the pilot read the previous quiet hours from storage. Fixed in PR #4 | |
+| Pairing relay: start, phone's sealed card, second reply | 201, 200, refused 400; only the laptop could open the card | |

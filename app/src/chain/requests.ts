@@ -130,7 +130,8 @@ export async function approveQueued(q: { id: string; account: Address; envelope:
   const r = await fetch("/api/relay", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ to: targetOf(body.account, body.intent), data }) });
   const j = await r.json();
   if (!r.ok || j.status !== "success") throw new Error(j.error ?? "The chain refused the approval. Nothing changed.");
-  await fetch(`/api/requests?id=${q.id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "approved", txHash: j.txHash }) });
+  // The chain transaction is the approval. Recording it in the queue is best effort and never undoes it.
+  await fetch(`/api/requests?id=${q.id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "approved", txHash: j.txHash }) }).catch(() => undefined);
   step("Approved", 1);
   return j.txHash as string;
 }

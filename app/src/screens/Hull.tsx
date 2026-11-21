@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import type { Address } from "viem";
 import { readAccount, fmt, type AccountView } from "../chain/account";
-import { DEPLOYMENT, TOKENS } from "../chain/config";
+import { TOKENS } from "../chain/config";
+import { myAccount } from "../chain/me";
 import { HullRow, type CompartmentView } from "../ui/Hull";
 
 const T = TOKENS.fUSD;
@@ -36,7 +37,7 @@ export function HullScreen() {
   const [err, setErr] = useState("");
   useEffect(() => {
     let on = true;
-    const load = () => readAccount(DEPLOYMENT.demoAccount as Address, T.address as Address)
+    const load = () => readAccount(myAccount()!.address, T.address as Address)
       .then((a) => { if (on) { setAcct(a); setErr(""); } })
       .catch(() => on && setErr("We can't reach QoreChain right now. Your walls hold on chain without us. Retrying in 5 s."));
     load(); const t = setInterval(load, 5000);

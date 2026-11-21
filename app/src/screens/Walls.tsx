@@ -1,16 +1,18 @@
 // Walls (section 16.5): change the walls with full understanding of what changes.
 // Tightening is one action. Any widening goes to the phone and names the delay.
+import { myAccount } from "../chain/me";
 import { useEffect, useState } from "react";
 import type { Address } from "viem";
 import { readAccount, fmt, type AccountView } from "../chain/account";
-import { DEPLOYMENT, TOKENS } from "../chain/config";
+import { TOKENS } from "../chain/config";
 import { actions } from "../chain/actions";
 import { ActionButton } from "../ui/Button";
 import { StatusMark } from "../ui/Status";
 import "./walls.css";
 
 const T = TOKENS.fUSD;
-const ACCOUNT = DEPLOYMENT.demoAccount as Address;
+// The user's own account. App screens render only once setup has created one.
+const myAddr = (): Address => myAccount()!.address;
 const ASSET = T.address as Address;
 const UNIT = 10n ** BigInt(T.decimals);
 const CENT = UNIT / 100n;
@@ -63,7 +65,7 @@ export function WallsScreen() {
 
   useEffect(() => {
     let on = true;
-    const load = () => readAccount(ACCOUNT, ASSET)
+    const load = () => readAccount(myAddr(), ASSET)
       .then((a) => { if (on) { setAcct(a); setErr(""); } })
       .catch(() => on && setErr("We can't reach QoreChain right now. Your walls hold on chain without us."));
     load();
@@ -148,7 +150,7 @@ export function WallsScreen() {
                   block
                   onDone={() => setForm(null)}
                   run={async (step) => {
-                    await actions.tighten(ACCOUNT, ASSET, next, step);
+                    await actions.tighten(myAddr(), ASSET, next, step);
                     return "Tightened";
                   }}
                 >
@@ -165,7 +167,7 @@ export function WallsScreen() {
                   kind="primary"
                   block
                   run={async (step) => {
-                    await actions.requestWiden(ACCOUNT, { kind: "SetPolicy", asset: TOKENS.fUSD.address, perTxCap: String(next.perTxCap), periodCap: String(next.periodCap), floor: String(next.floor) }, step);
+                    await actions.requestWiden(myAddr(), { kind: "SetPolicy", asset: TOKENS.fUSD.address, perTxCap: String(next.perTxCap), periodCap: String(next.periodCap), floor: String(next.floor) }, step);
                     return "Sent to your phone";
                   }}
                 >
@@ -182,7 +184,7 @@ export function WallsScreen() {
         <ActionButton
           kind="secondary"
           run={async (step) => {
-            await actions.seal(ACCOUNT, step);
+            await actions.seal(myAddr(), step);
             return "Sealed";
           }}
         >

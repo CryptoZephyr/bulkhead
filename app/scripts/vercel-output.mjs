@@ -4,7 +4,7 @@ import { build } from "esbuild";
 import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 
 const OUT = ".vercel/output";
-const FUNCTIONS = ["rest", "relay", "requests", "agent", "agent-key"];
+const FUNCTIONS = ["rest", "relay", "requests", "agent", "agent-key", "bills"];
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(`${OUT}/static`, { recursive: true });
 cpSync("dist", `${OUT}/static`, { recursive: true });
@@ -42,6 +42,8 @@ rmSync(".vercel-entry", { recursive: true, force: true });
 
 writeFileSync(`${OUT}/config.json`, JSON.stringify({
   version: 3,
+  // The bill agent's daily run: pays every approved bill that is due.
+  crons: [{ path: "/api/bills?cron=1", schedule: "17 10 * * *" }],
   routes: [
     { src: "^/api/rest/(.*)$", dest: "/api/rest?path=$1" },
     { handle: "filesystem" },

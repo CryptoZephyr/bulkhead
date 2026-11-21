@@ -1,69 +1,70 @@
-// Activity (#/activity), docs/DESIGN_SYSTEM.md section 16.7. Real rows from the testnet record, grouped by day, newest first.
-import { useState } from "react";
-import { StatusMark } from "../ui/Status";
-import { ACTIVITY, FILTERS, matches, type ActivityFilter } from "../data/activity";
-import { TxPlate } from "./Replay";
+// Activity: everything that happened to the account, read from the chain. No stored or example rows.
+import { useEffect, useState } from "react";
+import type { Address } from "viem";
+import { myAccount } from "../chain/me";
+import { readHistory, creationBlock, type HistoryItem } from "../chain/history";
+import { EXPLORER_TX } from "../chain/config";
+import { StatusMark, type StatusKind } from "../ui/Status";
 import "./activity.css";
 
-function dayLabel(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+const MARK: Record<HistoryItem["kind"], StatusKind> = {
+  paid: "paid", "paid-with-phone": "phone", received: "paid", tripped: "sealed", sealed: "sealed", paused: "paused",
+  tightened: "holding", "widen-queued": "phone", "widen-done": "holding", "widen-cancelled": "holding",
+  evacuated: "evacuated", "phone-change": "phone", "phone-changed": "phone",
+};
+
+export function useHistory(account: Address | null) {
+  const [items, setItems] = useState<HistoryItem[] | null>(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    if (!account) return;
+    let on = true, from: bigint | null = null;
+    const load = async () => {
+      try {
+        from ??= await creationBlock(account);
+        const h = await readHistory(account, from);
+        if (on) { setItems(h); setErr(""); }
+      } catch { if (on) setErr("We can't read the chain right now. Retrying."); }
+    };
+    void load(); const t = setInterval(() => void load(), 20_000);
+    return () => { on = false; clearInterval(t); };
+  }, [account]);
+  return { items, err };
+}
+
+export function HistoryList({ items, limit }: { items: HistoryItem[]; limit?: number }) {
+  const shown = limit ? items.slice(0, limit) : items;
+  return (
+    <ul className="history">
+      {shown.map((h) => (
+        <li key={h.txHash + h.kind + h.title} className={`plate history-row${h.attention ? " attention" : ""}`}>
+          <StatusMark kind={MARK[h.kind]} word={h.title} />
+          <p className="muted">{h.detail}</p>
+          <a className="hash" href={EXPLORER_TX + h.txHash} target="_blank" rel="noreferrer">
+            <span className="mono">{h.txHash.slice(0, 8)}…{h.txHash.slice(-6)}</span> QoreScan
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 export function ActivityScreen() {
-  const [filter, setFilter] = useState<ActivityFilter>("all");
-  // Stored oldest first; show newest first, grouped by day.
-  const newest = [...ACTIVITY].reverse().filter((i) => matches(i, filter));
-  const days = [...new Set(newest.map((i) => i.day))];
-
+  const account = myAccount()!.address;
+  const { items, err } = useHistory(account);
+  const [only, setOnly] = useState<"all" | "attention">("all");
+  if (err && !items) return <p role="alert" className="flood-line">{err}</p>;
+  if (!items) return <p className="muted" aria-busy="true">Reading your account's history from the chain.</p>;
+  if (!items.length) return <div className="plate"><p>Nothing has happened in this account yet. Payments, deposits and anything your walls stop will show here.</p></div>;
+  const list = only === "all" ? items : items.filter((i) => i.attention);
   return (
     <div className="activity">
-      <div className="plate activity-intro">
-        <p className="label">Testnet history: the QOR parity account and the fUSD demo account</p>
-        <p className="muted">
-          Real results from the QoreChain testnet, 21 November 2026. The demo account is a test account. Use test funds only.
-        </p>
-      </div>
-
-      <fieldset className="activity-filter">
-        <legend>Show</legend>
-        <div className="filter-row">
-          {FILTERS.map((f) => (
-            <label key={f.id} className="filter-chip">
-              <input type="radio" name="activity-filter" value={f.id} checked={filter === f.id}
-                onChange={() => setFilter(f.id)} />
-              <span>{f.label}</span>
-            </label>
-          ))}
-        </div>
-        <p className="muted filter-help">Needs attention lists sealed accounts and attempts the chain refused.</p>
+      <fieldset className="filter">
+        <legend className="visually-hidden">Show</legend>
+        <label><input type="radio" name="f" checked={only === "all"} onChange={() => setOnly("all")} /> Everything</label>
+        <label><input type="radio" name="f" checked={only === "attention"} onChange={() => setOnly("attention")} /> Needs attention</label>
       </fieldset>
-
-      {newest.length === 0 && <p className="plate muted">Nothing in this view yet.</p>}
-
-      {days.map((day) => (
-        <section key={day} className="activity-day" aria-labelledby={`day-${day}`}>
-          <h2 id={`day-${day}`} className="day-head">{dayLabel(day)}</h2>
-          <ul className="activity-list">
-            {newest.filter((i) => i.day === day).map((item) => (
-              <li key={item.id} className="plate act-row">
-                <div className="act-main">
-                  <span className="act-what">{item.what}</span>
-                  <span className="muted act-detail">{item.detail}</span>
-                </div>
-                <div className="act-side">
-                  <span className="act-amount">{item.amount}</span>
-                  <span className="act-comp label">{item.compartment}</span>
-                  <StatusMark kind={item.status} />
-                </div>
-                <div className="act-hash">
-                  <TxPlate hash={item.hash} label={item.what} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+      {list.length ? <HistoryList items={list} /> : <p className="muted">Nothing needs your attention.</p>}
     </div>
   );
 }

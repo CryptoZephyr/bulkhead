@@ -87,3 +87,5 @@ export async function windowLeft(): Promise<{ live: boolean; txsLeft: number }> 
   const r = await (await fetch(`${REST}/qorechain/pqc/v1/evm_window/${me.cosmos}`)).json();
   return { live: !!r.live, txsLeft: Number(r.max_txs ?? 0) - Number(r.used_txs ?? 0) };
 }
+
+export function isUnlocked(): boolean { return unlocked !== null; }

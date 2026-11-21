@@ -6,6 +6,7 @@ import { getQorexNative, hasCapability } from "@qorechain/qorex-types";
 import { evmToQor } from "@qorechain/sdk";
 import type { Address } from "viem";
 import { CHAIN_ID, TOKENS } from "./config";
+import { rememberFunding } from "./history";
 
 // Minimal protobuf writer for the two messages (no extra dependency).
 const varint = (n: number) => { const o: number[] = []; while (n > 127) { o.push((n & 127) | 128); n >>>= 7; } o.push(n); return o; };
@@ -33,6 +34,7 @@ export async function fundFromQorex(account: Address, asset: "QOR" | "fUSD", bas
   const r = await q.signAndBroadcast({ chainId: CHAIN_ID, messages: [{ typeUrl, value: Uint8Array.from(value) }], gasLimit: asset === "fUSD" ? 700_000 : 200_000 });
   if (r.code !== 0) throw new Error(`QoreX sent it, but the chain refused it (code ${r.code}).`);
   if (r.shield === "downgraded") throw new Error("QoreX reports this transaction went out without its post-quantum signature. Check QoreX before funding again.");
+  if (asset === "fUSD") rememberFunding(account, r.txHash);
   step("Funds on the way", 1);
   return r.txHash;
 }

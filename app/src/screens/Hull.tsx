@@ -1,10 +1,12 @@
-// Hull (home), section 16.3: is my money safe, and how much can I spend? Real chain reads of the demo account.
+// Hull (home), section 16.3: is my money safe, and how much can I spend? Real chain reads of your account.
 import { useEffect, useState } from "react";
 import type { Address } from "viem";
 import { readAccount, fmt, type AccountView } from "../chain/account";
 import { TOKENS } from "../chain/config";
 import { myAccount } from "../chain/me";
 import { HullRow, type CompartmentView } from "../ui/Hull";
+import { ExposureChart } from "../ui/ExposureChart";
+import { usePilot, PendingPlate } from "./Pilot";
 
 const T = TOKENS.fUSD;
 
@@ -52,8 +54,26 @@ export function HullScreen() {
         <span className="label">If your laptop were stolen now, the most it could take</span>
         <span className="big-number" style={{ color: "var(--lime)" }}>{fmt(acct.asset.blastRadius, T.decimals, T.places)} <small style={{ fontSize: 20 }}>{T.symbol}</small></span>
       </div>
+      <PilotSummary />
+      <PendingPlate />
       <HullRow compartments={comps} />
       {err && <p role="alert" style={{ color: "var(--rust)" }}>{err}</p>}
     </>
+  );
+}
+
+/** The pilot at a glance: the day's breathing line, or a nudge to add it. */
+function PilotSummary() {
+  const { v } = usePilot();
+  if (!v) return null;
+  if (!v.added) return (
+    <div className="next-step"><div><strong>Add the pilot</strong><p>Keep the most a stolen laptop could take close to zero while you sleep.</p></div><a className="btn btn-primary" href="#/pilot">Set up the pilot</a></div>
+  );
+  return (
+    <div className="plate" style={{ display: "grid", gap: 8 }}>
+      <span className="label">Your pilot · {v.quietNow ? "quiet hours, wall at rest" : "daytime, wall open"}</span>
+      <ExposureChart s={v.settings} ceilingPerTx={BigInt(v.chain.ceiling.perTx)} />
+      <a href="#/pilot">Change your hours</a>
+    </div>
   );
 }

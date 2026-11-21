@@ -62,3 +62,12 @@
 .exposure figcaption { font-size: 13px; }
 .plate a:not(.btn) { color: var(--lime); }
 @media (max-width: 600px) { .exp-label { font-size: 24px; } .exp-line { stroke-width: 5; } }
+
+.handshake { display: grid; gap: 12px; }
+.hs-qr { width: min(280px, 100%); }
+.hs-qr .qr { width: 100%; height: auto; display: block; border-radius: var(--r-input); }
+.hs-words { display: grid; grid-template-columns: repeat(4, auto); gap: 8px; justify-content: start; list-style: none; padding: 0; margin: 0; counter-reset: w; }
+.hs-words li { counter-increment: w; background: var(--lime); color: #0E2A13; font-weight: 850; font-size: 20px; padding: 10px 14px; border-radius: var(--r-plate); }
+.hs-words li::before { content: counter(w) ". "; font-weight: 600; opacity: .6; }
+.hs-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 600px) { .hs-words { grid-template-columns: 1fr 1fr; } }

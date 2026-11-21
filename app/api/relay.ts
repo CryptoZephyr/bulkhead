@@ -1,5 +1,5 @@
 // POST /api/relay { to, data }: relays a Safety-key-signed action. Keys come from the environment.
-import { relay, Refused } from "../server/relayer.ts";
+import { relay, Refused } from "../server/relayer.js";
 
 export const config = { runtime: "nodejs", maxDuration: 60 };
 

@@ -10,7 +10,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { createPublicClient, encodeFunctionData, http, parseAbi, type Address } from "viem";
 import { deriveUnifiedAccount, EthNativeSigner, buildPhantomExecuteEvm, fetchAuthNonce, resolveEvmAuthDigestVersion } from "@qorechain/sdk";
-import { decide, type Rule, type Proposal, type Verdict } from "./policy.ts";
+import { decide, type Rule, type Proposal, type Verdict } from "./policy.js";
 
 export const REST = "https://api-testnet.qore.host", CHAIN = "qorechain-diana", MODEL = "claude-haiku-5-5";
 const pub = createPublicClient({ transport: http("https://evm-testnet.qore.host") });

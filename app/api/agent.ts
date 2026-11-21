@@ -4,9 +4,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { sealToAddresses } from "@qorechain/qoreseal/network";
 import { envelopeToText } from "@qorechain/qoreseal";
-import { runAgent, REST, CHAIN } from "../server/agent.ts";
-import { submit, defaultStore, type Store } from "../server/queue.ts";
-import type { Rule } from "../server/policy.ts";
+import { runAgent, REST, CHAIN } from "../server/agent.js";
+import { submit, defaultStore, type Store } from "../server/queue.js";
+import type { Rule } from "../server/policy.js";
 
 export const config = { runtime: "nodejs", maxDuration: 60 };
 

@@ -3,7 +3,7 @@
 // The rule is fixed here in code, never by the model: fUSD only, 10 per payment, 25 per day, only fUSD.transfer.
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { deriveUnifiedAccount, EthNativeSigner, signAuthenticatorLinkEd25519, linkAuthenticatorMsgs, revokeAuthenticatorMsg, fetchAuthenticators } from "@qorechain/sdk";
-import { REST, CHAIN } from "./agent.ts";
+import { REST, CHAIN } from "./agent.js";
 
 export const FUSD = "0x97143b771d34ddb9130b807b135ae675a5a963ca";
 export const RULE = { perPayment: 10_000_000n, perDay: 25_000_000n };

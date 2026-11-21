@@ -8,14 +8,17 @@ const UPSTREAM = "https://api-testnet.qore.host";
 const BROADCAST = "/cosmos/tx/v1beta1/txs";
 const ALLOWED_READ = /^\/(cosmos|qorechain|cosmwasm|ibc)\//;
 
-export function route(pathname: string): string | null {
-  const p = pathname.replace(/^\/api\/rest/, "");
+/** The upstream path: from the rewrite's ?path= on Vercel, or from the URL in local dev. */
+export function route(url: URL): string | null {
+  const fromQuery = url.searchParams.get("path");
+  const p = fromQuery !== null ? "/" + fromQuery.replace(/^\/+/, "") : url.pathname.replace(/^\/api\/rest/, "");
   return p.startsWith("/") && !p.includes("..") ? p : null;
 }
 
 async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
-  const path = route(url.pathname);
+  const path = route(url);
+  url.searchParams.delete("path");
   if (!path) return new Response("Bad path", { status: 400 });
   if (req.method === "GET") {
     if (!ALLOWED_READ.test(path)) return new Response("Not allowed", { status: 403 });

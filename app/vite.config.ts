@@ -5,7 +5,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 // Runs the Vercel-style functions in api/ inside the dev and preview servers, so the whole
 // app (gateway, relayer, approval queue, agent) works locally exactly as it will when deployed.
 const ROUTES: [RegExp, string][] = [
-  [/^\/api\/rest\//, "/api/rest/[...path].ts"],
+  [/^\/api\/rest\//, "/api/rest.ts"],
   [/^\/api\/relay$/, "/api/relay.ts"],
   [/^\/api\/requests$/, "/api/requests.ts"],
   [/^\/api\/agent$/, "/api/agent.ts"],

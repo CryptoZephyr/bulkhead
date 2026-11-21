@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MemoryStore, submit, waitingFor, get, settle, TTL_MS } from "../queue.ts";
+import { MemoryStore, submit, waitingFor, get, settle, TTL_MS } from "../queue.js";
 
 const ok = { account: "0x1c548456DE8683d816409eceBd19D3C4BAD75a5E", phone: "qor1qphpfm88wztjm48znu4g44zhlk767vqp5rndra", envelope: "qoreseal:AAAA_b-c" };
 const HASH = "0x" + "ab".repeat(32);

@@ -1,5 +1,5 @@
 // GET /api/agent-key: when the bill agent's key expires. POST /api/agent-key: renew it (same key, same rule).
-import { agentKeyStatus, renewAgentKey } from "../server/agentKey.ts";
+import { agentKeyStatus, renewAgentKey } from "../server/agentKey.js";
 
 export const config = { runtime: "nodejs", maxDuration: 60 };
 

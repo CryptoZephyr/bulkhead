@@ -1,0 +1,27 @@
+/* Agent screen (section 16.6). Colours are tokens only. Inside a Hull plate, text uses the -on-plate tokens. */
+.agent-grid { display: grid; gap: var(--s3); }
+.agent-balance, .agent-rule { display: grid; gap: 8px; }
+.agent-rule p { margin: 0; font-size: 17px; font-weight: 600; }
+.agent-number small { font-size: 20px; font-weight: 600; color: var(--on-plate-2); margin-left: 4px; }
+.agent-actions, .agent-secondary { display: flex; flex-wrap: wrap; gap: var(--seam); }
+.agent-actions > div { flex: 1 1 260px; min-width: 0; }
+.agent-secondary > div { flex: 0 1 auto; min-width: 0; }
+@media (max-width: 600px) {
+  .agent-actions > div, .agent-secondary > div { flex: 1 1 100%; }
+  .agent-secondary .btn, .agent-actions .btn { width: 100%; }
+}
+.agent-decisions { display: grid; gap: 8px; }
+.agent-decisions h2 { margin-top: var(--s2); }
+
+.decisions { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--seam); }
+.decision { display: grid; gap: 8px; }
+.decision-payee { margin: 0; font-size: 17px; }
+.decision-payee strong { font-weight: 800; }
+.decision .reason { margin: 0; font-weight: 600; color: var(--on-plate); }
+.decision details { font-size: 14px; }
+.decision summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 700; color: var(--on-plate-2); }
+.decision summary:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
+.decision .invoice { margin: 4px 0 8px; padding: 12px; border-radius: var(--r-input); overflow-wrap: anywhere;
+  background: color-mix(in srgb, var(--on-plate) 8%, transparent); color: var(--on-plate); font-size: 14px; }
+.decision details .muted { font-size: 14px; }
+.plate :focus-visible { outline-color: var(--lime); }

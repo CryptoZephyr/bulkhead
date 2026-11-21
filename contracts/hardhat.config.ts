@@ -14,7 +14,7 @@ export default defineConfig({
   plugins: [hardhatToolboxViemPlugin],
   solidity: {
     profiles: {
-      default: { version: "0.8.28" },
+      default: { version: "0.8.28", settings: { optimizer: { enabled: true, runs: 200 } } },
       production: {
         version: "0.8.28",
         settings: { optimizer: { enabled: true, runs: 200 } },

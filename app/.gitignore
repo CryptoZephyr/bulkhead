@@ -5,3 +5,4 @@ dist
 !.env.example
 .local-*
 e2e-shots/
+.vercel

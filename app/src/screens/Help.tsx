@@ -1,11 +1,7 @@
 // Help (#/help), docs/DESIGN_SYSTEM.md section 16.11. Short plain answers, then the full hero footer.
-import { formatUnits } from "viem";
 import { HeroFooter } from "../ui/Shell";
-import { TOKENS } from "../chain/config";
-import { useDemoAccount } from "./Replay";
 import "./help.css";
 
-const T = TOKENS.fUSD;
 
 const QA: { q: string; a: string[] }[] = [
   {
@@ -46,10 +42,6 @@ const QA: { q: string; a: string[] }[] = [
 ];
 
 export function HelpScreen() {
-  const { acct } = useDemoAccount();
-  const worst = acct
-    ? `${Number(formatUnits(acct.asset.blastRadius, T.decimals)).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${T.symbol}`
-    : "reading from QoreChain…";
   return (
     <div className="help">
       <div className="help-list">
@@ -60,7 +52,7 @@ export function HelpScreen() {
           </details>
         ))}
       </div>
-      <HeroFooter worstCase={worst} cta={<a className="btn btn-primary" href="#/hull">Create my Bulkhead</a>} />
+      <HeroFooter cta={<a className="btn btn-primary" href="#/setup">Create my Bulkhead</a>} />
     </div>
   );
 }

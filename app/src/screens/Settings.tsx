@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import type { Address } from "viem";
 import { pub } from "../chain/account";
 import accountAbi from "../chain/abi/BulkheadAccount.json";
-import { DEPLOYMENT } from "../chain/config";
 import { ActionButton } from "../ui/Button";
 import { actions } from "../chain/actions";
 import { pairing } from "../chain/device";
@@ -18,8 +17,8 @@ const OPTIONS: { id: Theme; label: string }[] = [
   { id: "light", label: "Light" },
   { id: "dark", label: "Dark" },
 ];
-const ACCOUNT = myAccount().address;
-void DEPLOYMENT;
+// The user's own account. App screens render only once setup has created one.
+const myAddr = (): Address => myAccount()!.address;
 const ZERO = "0x0000000000000000000000000000000000000000";
 
 /** Reads the saved choice. Storage can be blocked, so this falls back to System. */
@@ -51,7 +50,7 @@ function useRecovery(): Recovery {
   const [r, setR] = useState<Recovery>({ status: "loading" });
   useEffect(() => {
     let on = true;
-    const c = { address: ACCOUNT, abi: accountAbi } as const;
+    const c = { address: myAddr(), abi: accountAbi } as const;
     pub.readContract({ ...c, functionName: "recovery" })
       .then((a) => { if (on) setR(a === ZERO ? { status: "none" } : { status: "set", address: a as Address }); })
       .catch(() => { if (on) setR({ status: "error" }); });
@@ -117,7 +116,7 @@ function PhoneSection() {
   const [pending, setPending] = useState<{ next: Address; readyAt: bigint; block: bigint } | null>(null);
   useEffect(() => {
     let on = true;
-    const load = () => pendingPhoneChange(ACCOUNT).then((x) => { if (on) setPending(x); }).catch(() => undefined);
+    const load = () => pendingPhoneChange(myAddr()).then((x) => { if (on) setPending(x); }).catch(() => undefined);
     load(); const t = setInterval(load, 10_000);
     return () => { on = false; clearInterval(t); };
   }, []);
@@ -137,8 +136,8 @@ function PhoneSection() {
           <p>New phone <span className="mono">{pending.next}</span>. Your account is sealed while it waits.</p>
           {left > 0n
             ? <p>{hours > 0 ? `About ${hours} more hours.` : "Less than an hour left."} If your old phone turns up, it can stop this.</p>
-            : <ActionButton run={async (step) => { await actions.confirmNewPhone(ACCOUNT, step); return "Your new phone is in charge"; }}>Switch to my new phone</ActionButton>}
-          <ActionButton kind="secondary" run={async (step) => { await actions.cancelNewPhone(ACCOUNT, step); return "Stopped"; }}>Stop the replacement</ActionButton>
+            : <ActionButton run={async (step) => { await actions.confirmNewPhone(myAddr(), step); return "Your new phone is in charge"; }}>Switch to my new phone</ActionButton>}
+          <ActionButton kind="secondary" run={async (step) => { await actions.cancelNewPhone(myAddr(), step); return "Stopped"; }}>Stop the replacement</ActionButton>
         </div>
       ) : p && (
         <details className="lost">
@@ -151,7 +150,7 @@ function PhoneSection() {
           </label>
           {next && !valid && <p role="alert" className="flood-line">That isn't a 0x address of 40 characters.</p>}
           {valid && (
-            <ActionButton run={async (step) => { await actions.proposeNewPhone(ACCOUNT, next.trim() as Address, step); return "Sealed. The wait has started."; }}>
+            <ActionButton run={async (step) => { await actions.proposeNewPhone(myAddr(), next.trim() as Address, step); return "Sealed. The wait has started."; }}>
               Seal and start the switch
             </ActionButton>
           )}

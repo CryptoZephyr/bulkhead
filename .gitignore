@@ -1,0 +1,13 @@
+node_modules/
+artifacts/
+cache/
+coverage/
+typechain-types/
+ignition/deployments/chain-31337/
+.env
+.env.*
+!.env.example
+*.log
+.wallet.json
+.vercel/
+dist/

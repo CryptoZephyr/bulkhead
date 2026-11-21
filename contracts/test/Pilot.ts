@@ -90,7 +90,15 @@ describe("Pilot", async () => {
     await assert.rejects(account.write.setLive([NATIVE, live("1", "1", (await now()) + 500n, "0", "0")], pilot), /TooFarAhead/);
   });
 
-  it("a stranger can't move the walls, the laptop can", async () => {
+  it("the laptop can lower the live walls but never raise them", async () => {
+    const { account, pilot, live } = await withPilot();
+    await account.write.setLive([NATIVE, live("0.1", "0.2", 0n, "0.1", "0.2")], pilot);
+    await assert.rejects(account.write.setLive([NATIVE, live("1", "3", 0n, "1", "3")]), /NotTighter/, "a stolen laptop can't reopen the night wall");
+    await account.write.setLive([NATIVE, live("0.05", "0.1", 0n, "0.05", "0.1")]);
+    assert.equal(await account.read.blastRadius([NATIVE]), E("0.05"));
+  });
+
+  it("a stranger can't move the walls, the laptop can lower them", async () => {
     const { env, account, live } = await withPilot();
     await assert.rejects(account.write.setLive([NATIVE, live("0", "0", 0n, "0", "0")], { account: env.stranger.account }), /NotPilot/);
     await account.write.setLive([NATIVE, live("0", "0", 0n, "0", "0")]);

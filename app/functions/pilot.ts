@@ -29,7 +29,7 @@ async function getBook(a: string): Promise<Book> {
   if (!hasBlob()) return structuredClone(mem.get(a) ?? { account: a, settings: null, log: [] });
   const { list } = await import("@vercel/blob");
   const { blobs } = await list({ prefix: `pilot/${a}.json` });
-  return blobs[0] ? (await fetch(blobs[0].url, { cache: "no-store" })).json() : { account: a, settings: null, log: [] };
+  return blobs[0] ? (await fetch(`${blobs[0].url}?v=${Date.now()}`, { cache: "no-store" })).json() : { account: a, settings: null, log: [] };
 }
 async function putBook(b: Book) {
   if (!hasBlob()) { mem.set(b.account, structuredClone(b)); return; }
@@ -64,8 +64,8 @@ async function apply(book: Book, chain: ChainView, t: LiveTarget, kind: LogEntry
   return r;
 }
 
-async function tick(account: string, now = Date.now()) {
-  const book = await getBook(account);
+async function tick(account: string, now = Date.now(), known?: Book) {
+  const book = known ?? await getBook(account);
   if (!book.settings) return { book, changed: false, reason: "No schedule yet." };
   const chain = await readChain(account as Address);
   if (chain.sealed) return { book, changed: false, reason: "The account is sealed. Nothing to do." };
@@ -146,8 +146,9 @@ async function handler(req: Request): Promise<Response> {
       book.settings = fromSettings(s);
       log(book, { kind: "settings", reason: `Quiet hours ${s.quietStart} to ${s.quietEnd}. Night wall ${fmt(s.restPerTx)} per payment, daytime wall ${fmt(s.dayPerTx)}.` });
       await putBook(book);
-      const r = chain.pilot !== "0x0000000000000000000000000000000000000000" ? await tick(account).catch((e) => ({ changed: false, reason: (e as Error).message })) : { changed: false, reason: "Add the pilot on your phone to start." };
-      return Response.json({ ok: true, changed: r.changed, reason: r.reason, log: (await getBook(account)).log });
+      // Act on the settings just saved, not on a re-read copy (storage reads can lag a write).
+      const r = chain.pilot !== "0x0000000000000000000000000000000000000000" ? await tick(account, Date.now(), book).catch((e) => ({ changed: false, reason: (e as Error).message })) : { changed: false, reason: "Add the pilot on your phone to start." };
+      return Response.json({ ok: true, changed: r.changed, reason: r.reason, log: book.log });
     }
     if (c.kind === "request") {
       if (!book.settings) throw new BadPilot("Set your quiet hours first.");

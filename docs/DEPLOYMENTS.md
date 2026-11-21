@@ -38,3 +38,12 @@ Live parity results, 21 November (rerun on the current contracts gave the same o
 | Hijacked key calls Bulkhead.spend directly | blocked by the chain |
 
 Final balances: payee 17, agent account 13, Bulkhead 70 fUSD (untouched by the agent).
+
+## Stolen-key seal on the fUSD demo account (21 November, round 22)
+
+| Step | Result | Gas | Transaction |
+|---|---|---|---|
+| Everyday spend 2.00 fUSD, window scoped to the account | paid | 119,277 | 0x83af506eee4d723a1829af15d42f295ee579b807d96c12821bc7d38f4243da73 |
+| Stolen key spends 6.00 fUSD, over the 5.00 per-payment cap | tx success, sealed, nothing moved | 109,584 | 0x687fb72d3e47b14a2f105d5aabdff640f2486508f7fd1fcb8ac4c1f51bb6878b |
+
+The demo account now holds 68 fUSD, is sealed, and its blast radius is 0. It unseals only through a Safety-key widening after the delay.

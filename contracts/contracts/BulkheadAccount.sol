@@ -43,10 +43,11 @@ contract BulkheadAccount {
     // ------------------------------------------------------------------ immutable config
 
     address public immutable everyday;      // laptop key (EVM address of the user's account)
-    address public immutable safety;        // phone account whose proven ML-DSA-87 key authorises widening
+    address public safety;                  // phone account whose proven ML-DSA-87 key authorises widening (replaceable, slowly)
     address public immutable factory;
     uint256 public immutable periodBlocks;
     uint256 public immutable loosenDelay;   // D, in blocks
+    uint256 public immutable safetyDelay;   // blocks a lost-phone replacement waits, sealed, before it takes effect
 
     // ------------------------------------------------------------------ state
 
@@ -69,6 +70,9 @@ contract BulkheadAccount {
     mapping(address => uint256) public sentinelUses;
 
     mapping(uint256 => bool) public nonceUsed;           // Safety-key signatures, single use
+
+    address public pendingSafety;                        // lost-phone replacement in progress
+    uint256 public safetyReadyAt;
     uint256 public epoch;                                // bumped by every tighten, cancels queued widening
     mapping(bytes32 => uint256) public readyAt;          // queued widening: id => block it may run
     mapping(bytes32 => uint256) public queuedEpoch;
@@ -86,6 +90,9 @@ contract BulkheadAccount {
     event LoosenExecuted(bytes32 indexed id, Loosen action);
     event LoosenCancelled(uint256 newEpoch);
     event BrokeGlass(address indexed asset, address indexed to, uint256 amount);
+    event SafetyChangeProposed(address indexed next, uint256 readyAt);
+    event SafetyChangeCancelled(address indexed next);
+    event SafetyChanged(address indexed previous, address indexed next);
 
     // ------------------------------------------------------------------ errors
 
@@ -106,6 +113,8 @@ contract BulkheadAccount {
     error RecoveryNotAccount();
     error TransferFailed();
     error Reentrant();
+    error NoSafetyChange();
+    error BadSafety();
 
     // ------------------------------------------------------------------ modifiers
 
@@ -129,6 +138,7 @@ contract BulkheadAccount {
         address recovery;          // may be zero at creation, set later by a Safety-key widening
         uint256 periodBlocks;
         uint256 loosenDelay;
+        uint256 safetyDelay;       // lost-phone replacement wait, in blocks
         address[] assets;
         Policy[] policies;
         address[] payees;          // non-empty turns the payee list on
@@ -140,6 +150,7 @@ contract BulkheadAccount {
         factory = msg.sender;
         periodBlocks = i.periodBlocks;
         loosenDelay = i.loosenDelay;
+        safetyDelay = i.safetyDelay;
         recovery = i.recovery;
         for (uint256 k = 0; k < i.assets.length; k++) policy[i.assets[k]] = i.policies[k];
         if (i.payees.length > 0) {
@@ -234,6 +245,63 @@ contract BulkheadAccount {
     }
 
     // ------------------------------------------------------------------ tighten (instant)
+
+    /// @notice The phone can seal on its own, for example when it sees a request it didn't ask for.
+    function sealWithApproval(uint256 nonce, uint256 deadline, bytes calldata sig) external {
+        _checkSafety(2, "", nonce, deadline, sig);
+        sealed_ = true;
+        _bumpEpoch();
+        emit Sealed(safety);
+    }
+
+    // ------------------------------------------------------------------ lost phone
+
+    /// @notice Lost phone: the laptop proposes a new phone. The account seals at once and stays sealed;
+    ///         the change waits `safetyDelay` blocks, during which the old phone (if it still exists) or the
+    ///         laptop can cancel it. A thief with the laptop alone gets a sealed account and a long, visible wait.
+    function proposeSafety(address next) external onlyEveryday {
+        if (next == address(0) || next == everyday || next == safety) revert BadSafety();
+        pendingSafety = next;
+        safetyReadyAt = block.number + safetyDelay;
+        sealed_ = true;
+        _bumpEpoch();
+        emit Sealed(msg.sender);
+        emit SafetyChangeProposed(next, safetyReadyAt);
+    }
+
+    /// @notice The current phone vetoes a replacement it didn't ask for.
+    function cancelSafetyChangeWithApproval(uint256 nonce, uint256 deadline, bytes calldata sig) external {
+        address p = pendingSafety;
+        if (p == address(0)) revert NoSafetyChange();
+        _checkSafety(3, abi.encode(p), nonce, deadline, sig);
+        delete pendingSafety; delete safetyReadyAt;
+        _bumpEpoch();
+        emit SafetyChangeCancelled(p);
+    }
+
+    /// @notice The laptop can withdraw its own proposal (a tighten).
+    function cancelSafetyChange() external onlyEveryday {
+        address p = pendingSafety;
+        if (p == address(0)) revert NoSafetyChange();
+        delete pendingSafety; delete safetyReadyAt;
+        _bumpEpoch();
+        emit SafetyChangeCancelled(p);
+    }
+
+    /// @notice Anyone may finish a replacement once the wait is over. The new phone's key must be registered
+    ///         and proven on chain. The account stays sealed; the new phone unseals it with a normal widening.
+    function confirmSafety() external {
+        address p = pendingSafety;
+        if (p == address(0)) revert NoSafetyChange();
+        if (block.number < safetyReadyAt) revert TooEarly();
+        (bool registered, , bytes memory pk, bool proven) = QorePQC.keyOf(p);
+        if (!registered || pk.length == 0) revert NoSafetyKey();
+        if (!proven) revert SafetyKeyNotProven();
+        emit SafetyChanged(safety, p);
+        safety = p;
+        delete pendingSafety; delete safetyReadyAt;
+        _bumpEpoch();
+    }
 
     function seal() external onlyEveryday {
         sealed_ = true;

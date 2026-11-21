@@ -1,0 +1,30 @@
+/* Walls screen (section 16.5). Colours are tokens only. Inside a Hull plate, feedback uses the -on-plate tokens. */
+.walls-grid { display: grid; gap: var(--s3); }
+.walls-now { display: grid; gap: 8px; }
+.walls-now strong { font-weight: 850; font-stretch: var(--wide); }
+
+.walls-fields { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: var(--s3); }
+.walls-fields legend { font-size: 17px; font-weight: 800; color: var(--on-plate); padding: 0; margin-bottom: var(--s2); }
+.field { display: grid; gap: 8px; }
+.field > label { font-size: 15px; font-weight: 700; color: var(--on-plate); }
+.field-input { width: 100%; min-height: 52px; padding: 0 var(--s2); border-radius: var(--r-input);
+  border: 1.5px solid var(--border); background: var(--sheet); color: var(--text); font: 500 17px var(--f-sans); }
+.field-input::placeholder { color: var(--text-2); }
+.field-input[aria-invalid="true"] { border-color: var(--flood-on-plate); }
+.field-input:focus-visible, .btn:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
+.amount-row { display: flex; gap: 8px; align-items: stretch; }
+.amount-row .field-input { flex: 1; min-width: 0; }
+.unit { display: inline-flex; align-items: center; font-weight: 700; color: var(--on-plate); min-width: 52px; }
+.hint { font-size: 14px; color: var(--on-plate-2); }
+.field-error { color: var(--flood-on-plate); font-weight: 600; font-size: 14px; }
+
+.walls-change { display: grid; gap: 12px; align-content: start; }
+.walls-change p { margin: 0; }
+.worst { font-size: 18px; font-weight: 600; }
+.worst strong { font-weight: 850; font-stretch: var(--wide); }
+.phone-line { display: inline-flex; color: var(--rust-on-plate); }
+.walls-change .muted { font-size: 14px; }
+
+.seal { display: grid; gap: var(--s2); justify-items: start; }
+.seal .btn { min-width: 220px; }
+@media (max-width: 600px) { .seal .btn { min-width: 0; width: 100%; } }

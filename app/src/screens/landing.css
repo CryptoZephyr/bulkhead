@@ -1,0 +1,39 @@
+/* Landing (#/landing), rendered without the app Shell. Tokens only: no literal colours. */
+.landing { min-height: 100vh; display: flex; flex-direction: column; }
+.landing-top { position: sticky; top: 0; }
+.landing-brand { color: var(--on-plate); }
+.landing-main { display: grid; gap: var(--s4); padding-block: var(--s4) var(--s6); }
+.landing-hero { font-size: clamp(36px, 6vw, 60px); font-weight: 850; font-stretch: var(--widest); line-height: 1.02; max-width: 16ch; text-wrap: balance; }
+
+.landing-replay { display: grid; gap: 14px; }
+.landing-replay-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.landing-replay-top .label { color: var(--on-plate-2); }
+.replay-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.ctl { min-height: 44px; min-width: 44px; padding: 0 14px; border: 0; border-radius: var(--r-plate); cursor: pointer;
+  background: color-mix(in srgb, var(--on-plate) 12%, var(--plate)); color: var(--on-plate); font: 600 15px var(--f-sans); }
+.ctl:disabled { opacity: .45; cursor: not-allowed; }
+.landing-step-title { font-size: 26px; }
+.landing-step-sum { max-width: 60ch; font-size: 16px; }
+
+.landing-results { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.landing-result { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 12px 14px;
+  border-radius: var(--r-input); background: color-mix(in srgb, var(--on-plate) 6%, var(--plate)); color: var(--on-plate); }
+.landing-what { flex: 1 1 200px; font-weight: 600; }
+.landing-closing { font-size: 22px; font-weight: 850; font-stretch: var(--wide); color: var(--lime); }
+
+.landing-cta { display: flex; }
+.landing-cta .btn { width: 100%; max-width: 320px; }
+@media (min-width: 601px) { .landing-cta .btn { width: auto; } }
+
+.landing-how { display: grid; gap: 16px; }
+.landing-how h2 { font-size: 26px; }
+.landing-how-wait { min-height: 120px; }
+.landing-how-note { max-width: 70ch; font-size: 14px; }
+
+.landing .hero-foot h2 { max-width: 14ch; }
+@media (max-width: 600px) {
+  .landing-top .topbar-in { gap: 8px 12px; min-height: 56px; }
+  .landing-top .readout { font-size: 12px; flex-basis: 100%; order: 3; }
+  .landing-replay { padding: 24px 16px 16px; }
+  .landing-result { padding: 12px; }
+}

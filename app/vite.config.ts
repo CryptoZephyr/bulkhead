@@ -9,6 +9,7 @@ const ROUTES: [RegExp, string][] = [
   [/^\/api\/relay$/, "/api/relay.ts"],
   [/^\/api\/requests$/, "/api/requests.ts"],
   [/^\/api\/agent$/, "/api/agent.ts"],
+  [/^\/api\/agent-key$/, "/api/agent-key.ts"],
 ];
 
 function apiBridge(): Plugin {

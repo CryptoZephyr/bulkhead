@@ -1,7 +1,7 @@
 // Fixed invoice sets, including a poisoned one, must give the same verdicts on every run.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { decide, type Rule } from "../policy.ts";
+import { decide, type Rule } from "../policy.js";
 
 const FUSD = "0x97143b771d34ddb9130b807b135ae675a5a963ca";
 const ACME = "0x000000000000000000000000000000000000a11c";

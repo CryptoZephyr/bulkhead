@@ -3,7 +3,7 @@
 //   GET  /api/requests?phone=qor1 -> requests waiting for that phone
 //   GET  /api/requests?id=...     -> one request (the laptop polls it)
 //   POST /api/requests?id=...     { status, txHash }              -> the phone settles it
-import { submit, waitingFor, get, settle, BadRequest, defaultStore, type Store } from "../server/queue.ts";
+import { submit, waitingFor, get, settle, BadRequest, defaultStore, type Store } from "../server/queue.js";
 
 export const config = { runtime: "nodejs" };
 

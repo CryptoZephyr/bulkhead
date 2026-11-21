@@ -1,0 +1,32 @@
+.shell { min-height: 100vh; display: flex; flex-direction: column; }
+.shell > .body { flex: 1; }
+.topbar { background: var(--plate); color: var(--on-plate); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
+.topbar-in { display: flex; align-items: center; gap: var(--s3); min-height: 64px; flex-wrap: wrap; }
+.readout { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--on-plate-2); flex: 1; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--kelp-on-plate); }
+.dot.down { background: var(--rust-on-plate); }
+.account { color: var(--on-plate); background: color-mix(in srgb, var(--on-plate) 10%, transparent); padding: 8px 14px; border-radius: var(--r-plate); min-height: 40px; display: inline-flex; align-items: center; }
+.body { display: grid; grid-template-columns: 180px 1fr; gap: var(--s4); padding-block: var(--s4) var(--s8); }
+.rail { display: grid; gap: var(--seam); align-content: start; position: sticky; top: 88px; }
+.rail a { background: var(--plate); color: var(--on-plate); border-radius: var(--r-plate); padding: 14px 16px; font-weight: 700; position: relative; min-height: 48px; }
+.rail a[aria-current="page"]::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 4px; background: var(--lime); border-radius: 0 2px 2px 0; }
+.screen { min-width: 0; display: grid; gap: var(--s3); align-content: start; }
+.screen-head { display: grid; gap: 6px; }
+@media (max-width: 760px) {
+  .body { grid-template-columns: 1fr; gap: var(--s3); }
+  .rail { position: static; grid-auto-flow: column; grid-auto-columns: 1fr; }
+  .rail a { text-align: center; }
+  .rail a[aria-current="page"]::before { left: 10px; right: 10px; top: auto; bottom: 0; width: auto; height: 4px; border-radius: 2px 2px 0 0; }
+}
+.foot-row { background: var(--plate); color: var(--on-plate); }
+.foot-row-in { display: flex; flex-wrap: wrap; align-items: center; gap: 12px var(--s4); padding-block: 20px 28px; font-size: 14px; border-top: 1px solid var(--weld); }
+.foot-links { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.foot-links a { color: var(--on-plate); }
+.foot-links a:hover { color: var(--lime); }
+.foot-legal { color: var(--on-plate-2); font-size: 13px; width: 100%; }
+.hero-foot { background: var(--plate); color: var(--on-plate); }
+.hero-foot-in { padding-block: 72px 48px; display: grid; gap: 20px; }
+.hero-foot h2 { font-size: clamp(44px, 8vw, 88px); font-weight: 850; font-stretch: var(--widest); line-height: .98; max-width: 14ch; color: var(--on-plate); }
+.hero-foot .lead { color: var(--on-plate-2); font-size: 18px; }
+.hero-act { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.hero-act strong { color: var(--lime); font-weight: 850; font-stretch: var(--wide); }

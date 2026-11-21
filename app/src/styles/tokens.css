@@ -1,0 +1,59 @@
+/* Bulkhead tokens. Source: docs/DESIGN_SYSTEM.md sections 4, 5 and 13. Every colour is a token; components never use literals. */
+@import "@fontsource-variable/archivo/wdth.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+
+:root {
+  /* 60 / 30 / 10 */
+  --page: #E7E2D8;        /* Bone */
+  --plate: #0E2A13;       /* Hull, the logo's green */
+  --lime: #D8FFA6;        /* Lime, the logo's lime */
+  --lime-press: #C4F082;
+  --lime-deep: #3F5A12;   /* lime-toned text on Bone only */
+  /* supporting */
+  --sheet: #F3F0EA;
+  --text: #0E2A13;
+  --text-2: #4B5A55;
+  --on-plate: #EEF0EA;
+  --on-plate-2: #A9B8AA;
+  --border: #6B756F;
+  --weld: #1F4026;
+  /* feedback (light value on Bone, -on-plate value on Hull) */
+  --kelp: #1E6B45; --kelp-on-plate: #6FD3A0;
+  --flood: #B3261E; --flood-on-plate: #FF8C7E;
+  --rust: #8C3B0A; --rust-on-plate: #F2A36B;
+  --dim: rgba(14, 42, 19, 0.55);
+
+  /* type */
+  --f-sans: "Archivo Variable", "Helvetica Neue", Arial, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --wide: 118%;
+  --widest: 125%;
+
+  /* 8px grid */
+  --s1: 8px; --s2: 16px; --s3: 24px; --s4: 32px; --s5: 40px; --s6: 48px; --s8: 64px;
+  --r-plate: 6px; --r-input: 4px; --r-chip: 2px;
+  --seam: 4px;
+
+  /* motion (section 7, approved) */
+  --t-press: 180ms; --t-fill: 400ms; --t-slam: 220ms;
+  --spring: cubic-bezier(.3, 1.5, .6, 1);
+  --overshoot: cubic-bezier(.3, 1.6, .6, 1);
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #071409; --plate: #163A1E; --sheet: #13211E; --text: #EEF0EA; --text-2: #A9B8AA;
+    --border: #5E6B66; --weld: #245030; --lime-deep: #D8FFA6;
+    --kelp: #6FD3A0; --flood: #FF8C7E; --rust: #F2A36B; --dim: rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #071409; --plate: #163A1E; --sheet: #13211E; --text: #EEF0EA; --text-2: #A9B8AA;
+  --border: #5E6B66; --weld: #245030; --lime-deep: #D8FFA6;
+  --kelp: #6FD3A0; --flood: #FF8C7E; --rust: #F2A36B; --dim: rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}

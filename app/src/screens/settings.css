@@ -1,0 +1,22 @@
+/* Account screen (docs/DESIGN_SYSTEM.md section 16). Plates on the app shell. */
+.settings { display: grid; gap: 16px; max-width: 640px; }
+.settings .plate { display: grid; gap: 12px; padding: 24px; }
+.settings h2 { font-size: 20px; font-weight: 800; color: var(--on-plate); }
+.settings .small { font-size: 13px; }
+.settings .btn-error { color: var(--flood-on-plate); }
+
+/* Native radio fieldset for the theme choice */
+.theme { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; min-width: 0; }
+.theme legend { font-size: 20px; font-weight: 800; color: var(--on-plate); padding: 0; margin-bottom: 4px; }
+.theme .muted { margin-bottom: 4px; }
+.radio {
+  display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 14px;
+  border-radius: var(--r-input); background: color-mix(in srgb, var(--on-plate) 7%, transparent);
+  color: var(--on-plate); font-weight: 600; cursor: pointer;
+}
+.radio input { width: 20px; height: 20px; margin: 0; accent-color: var(--lime); cursor: pointer; }
+
+/* Recovery value: an address in mono, or a plain status */
+.addr { margin: 0; font-size: 16px; font-weight: 600; color: var(--on-plate); overflow-wrap: anywhere; }
+.addr.mono { font-family: var(--f-mono); font-size: 14px; }
+.settings .muted { color: var(--on-plate-2); }

@@ -44,6 +44,7 @@ export async function deployAccount(env: Env, over: Partial<{ recovery: Address;
     recovery: over.recovery ?? NATIVE,
     periodBlocks: 100n,
     loosenDelay: over.delay ?? 50n,
+    safetyDelay: 200n,
     assets,
     policies: assets.map(() => over.policy ?? defaultPolicy),
     payees: over.payees ?? [],

@@ -1,0 +1,147 @@
+/* Phone safety view (docs/DESIGN_SYSTEM.md section 16.8). Phone first, centred at 440px on desktop. */
+.phone {
+  max-width: 440px; margin: 0 auto; min-height: 100vh; align-content: start;
+  display: grid; gap: 16px;
+  padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(24px, env(safe-area-inset-bottom, 0px));
+}
+.phone > * { min-width: 0; }
+.phone .plate { padding: 16px; }
+.phone .plate::before { top: 8px; }
+
+/* Header: Mark, title and the live network readout */
+.ph { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ph h1 { font-size: 20px; font-weight: 800; color: var(--on-plate); }
+.ph-mark { color: var(--lime); display: inline-flex; }
+.ph .readout { flex: 1 1 100%; }
+
+/* Hull row in miniature: one row, proportional widths, sentences hidden */
+.mini .hull { flex-wrap: nowrap; gap: var(--seam); }
+.mini .comp { flex: var(--w, 1) 1 150px; min-width: 0; padding: 14px 12px 12px; gap: 8px; }
+.mini .comp > p { display: none; }
+.mini .comp-bal { font-size: 20px; }
+.mini .comp-bal small { font-size: 12px; }
+.mini .comp strong { font-size: 15px !important; }
+.mini .comp .label { font-size: 12px; }
+.mini .fill-level { height: 28px; }
+.mini .comp-head { font-size: 14px; }
+.skeleton { min-height: 160px; }
+.flood-line { color: var(--flood); font-weight: 700; font-size: 16px; margin: 0; }
+
+/* Rest */
+.rest { display: grid; gap: 6px; }
+.rest h2 { font-size: 24px; font-weight: 800; }
+button.plate.entry {
+  width: 100%; min-height: 56px; border: 0; font: inherit; text-align: left; cursor: pointer;
+  display: grid; gap: 4px; color: var(--on-plate);
+}
+.entry strong { font-size: 16px; font-weight: 700; }
+.entry span { font-size: 13px; }
+
+/* Request */
+.req { display: grid; gap: 16px; }
+.req-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; background: var(--sheet); color: var(--text); border-radius: var(--r-chip); padding: 4px 8px; font-size: 13px; font-weight: 700; }
+.req h2 { font-size: 24px; font-weight: 800; }
+.pair { display: flex; gap: var(--seam); }
+.pair .pl { flex: 1 1 0; min-width: 0; display: grid; gap: 4px; padding: 16px 14px; align-content: start; }
+.pl-num { font-size: 28px; font-weight: 850; font-stretch: var(--wide); line-height: 1.05; }
+.pl-unit { font-size: 14px; color: var(--on-plate-2); }
+.pl-text { font-size: 16px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+.facts { display: grid; gap: 8px; margin: 0; }
+.facts > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.facts dt { color: var(--text-2); font-size: 14px; }
+.facts dd { margin: 0; font-weight: 700; text-align: right; }
+.decoded { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; background: var(--sheet); color: var(--text); border-radius: var(--r-input); padding: 12px; font-size: 14px; max-width: none; }
+.decoded .mono { font-size: 13px; overflow-wrap: anywhere; }
+.mono { font-family: var(--f-mono); }
+
+/* Hold to approve: 96px Lime button inside a ring that fills over 1 second */
+.hold-wrap { display: grid; justify-items: center; gap: 10px; text-align: center; }
+.hold { position: relative; width: 120px; height: 120px; }
+.ring { position: absolute; inset: 0; width: 120px; height: 120px; }
+.ring circle { fill: none; stroke-width: 4; }
+.ring-track { stroke: color-mix(in srgb, var(--text) 18%, transparent); }
+.ring-fill {
+  stroke: var(--lime-deep); stroke-dasharray: 352; stroke-dashoffset: 352;
+  transform: rotate(-90deg); transform-origin: 60px 60px;
+  transition: stroke-dashoffset 150ms ease-out;
+}
+.hold[data-holding="true"] .ring-fill { stroke-dashoffset: 0; transition: stroke-dashoffset 1000ms linear; }
+.hold-btn {
+  position: absolute; inset: 12px; width: 96px; height: 96px; padding: 0; border: 0; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer; background: var(--lime); color: var(--plate);
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  transition: transform var(--t-press) var(--spring), background 150ms;
+}
+.hold-btn svg { width: 36px; height: 36px; }
+.hold-btn:active:not(:disabled) { transform: scale(.97); background: var(--lime-press); }
+.hold-btn:disabled { opacity: .6; cursor: progress; }
+.hold-hint { font-size: 14px; }
+.err { min-height: 21px; color: var(--flood); font-size: 14px; font-weight: 600; margin: 0; }
+.sent { display: grid; gap: 8px; justify-items: start; }
+.hash-link { display: inline-flex; align-items: center; gap: 8px; color: var(--text); font-size: 13px; font-weight: 600; min-height: 40px; }
+.hash-link .hash { overflow-wrap: anywhere; }
+
+/* Refused and approved outcomes */
+.takes { font-size: 14px; margin: 0; }
+.refused { font-size: 17px; font-weight: 700; margin: 0; color: var(--text); }
+.dismiss { width: 100%; }
+.step { display: grid; gap: 8px; font-size: 14px; font-weight: 600; }
+.step-track { display: block; height: 6px; border-radius: 2px; background: color-mix(in srgb, var(--text) 14%, transparent); overflow: hidden; }
+.step-track b { display: block; height: 100%; background: var(--lime); transition: width 300ms ease-out; }
+
+/* Address and readiness */
+.addr-plate { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.addr-plate p { margin: 0; font-size: 14px; color: var(--on-plate-2); }
+.copy-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; justify-items: start; min-width: 0; }
+.addr-text { display: block; max-width: 100%; font-size: 17px; line-height: 1.6; overflow-wrap: anywhere; color: var(--on-plate); }
+.grp { white-space: nowrap; }
+.copy-btn { min-height: 44px; padding: 0 16px; font-size: 15px; }
+.copy-note { margin: 0; font-size: 13px; }
+.copy-note:empty { display: none; }
+.ready-plate { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.ready-plate h2 { font-size: 20px; font-weight: 800; margin: 0; }
+.ready-plate .muted { margin: 0; font-size: 14px; }
+.ready-plate .copy-row .muted { font-size: 13px; }
+.setup-plate { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.setup-plate h2 { font-size: 22px; font-weight: 800; margin: 0; }
+.setup-plate > p.muted { margin: 0; font-size: 14px; }
+.setup-plate .hint { font-size: 13px; }
+.setup-plate .block { width: 100%; }
+.field { display: grid; gap: 6px; }
+.field span { font-size: 14px; color: var(--on-plate-2); font-weight: 600; }
+.field input {
+  min-height: 52px; padding: 0 12px; border: 0; border-radius: var(--r-input); background: var(--sheet); color: var(--text);
+  font: inherit; font-size: 17px; width: 100%; box-sizing: border-box;
+}
+.field input:focus-visible { outline: 3px solid var(--lime); outline-offset: 2px; }
+.unlock { display: grid; gap: 12px; margin: 0; }
+.unlock .block { width: 100%; }
+.unlock .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Refuse */
+.refuse { display: grid; gap: 8px; justify-items: start; }
+.refuse .btn { width: 100%; }
+.refuse .muted { font-size: 14px; }
+
+/* Sheets: native dialogs, a plate on a dimmed page, no shadow */
+.sheet {
+  width: min(420px, calc(100% - 32px)); max-height: calc(100% - 32px); margin: auto;
+  padding: 0; border: 0; border-radius: var(--r-plate);
+  background: var(--plate); color: var(--on-plate); text-align: left;
+}
+.sheet::backdrop { background: var(--dim); }
+.sheet-body { padding: 24px; display: grid; gap: 12px; }
+.sheet h2 { font-size: 22px; font-weight: 800; color: var(--on-plate); }
+.sheet .label, .sheet .muted { color: var(--on-plate-2); }
+.sheet .addr { font-size: 15px; overflow-wrap: anywhere; margin: 0; color: var(--on-plate); }
+.sheet .addr.mono { font-size: 14px; }
+.sheet-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.sheet-actions .btn { flex: 1 1 140px; }
+.sheet .btn-secondary { background: color-mix(in srgb, var(--on-plate) 12%, var(--plate)); }
+.sheet .btn-error { color: var(--flood-on-plate); margin-top: 0; }
+.sheet .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Focus rings on plates need the light text colour */
+.plate :focus-visible, .sheet :focus-visible { outline-color: var(--on-plate); }
+.hold .ring { pointer-events: none; }

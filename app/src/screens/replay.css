@@ -1,0 +1,45 @@
+/* Attack replay (#/replay). Tokens only: no literal colours. */
+.replay { display: grid; gap: var(--s3); min-width: 0; }
+
+.replay-progress { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--seam); }
+.replay-progress li { height: 6px; border-radius: var(--r-chip); background: color-mix(in srgb, var(--text) 18%, transparent); }
+.replay-progress li[data-done="true"] { background: var(--plate); }
+.replay-progress li[aria-current="step"] { background: var(--lime); }
+
+.replay-card { display: grid; gap: 10px; }
+.replay-card h2 { font-size: 26px; }
+.replay-summary { font-size: 17px; max-width: 60ch; }
+.replay-worst { display: grid; gap: 8px; margin-top: var(--s1); }
+.replay-worst-num { color: var(--lime); font-size: clamp(44px, 9vw, 56px); overflow-wrap: anywhere; }
+.replay-worst-num small { font-size: 20px; font-weight: 700; margin-left: 6px; }
+.replay-err { color: var(--flood-on-plate); font-weight: 600; font-size: 14px; }
+
+.hull-wrap { display: grid; gap: 12px; min-width: 0; }
+.replay-caption { font-size: 13px; max-width: 70ch; }
+
+.replay-results ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--seam); }
+.replay-result { display: grid; gap: 12px; padding: var(--s2); }
+.replay-result-main { display: grid; gap: 6px; min-width: 0; }
+.replay-what { font-weight: 700; font-size: 16px; }
+.replay-detail { font-size: 14px; }
+.replay-source { font-size: 13px; margin-top: 10px; max-width: 70ch; }
+
+.replay-close { display: grid; gap: 8px; }
+.replay-closing { font-size: clamp(22px, 4vw, 30px); font-weight: 850; font-stretch: var(--wide); color: var(--lime); line-height: 1.15; }
+
+.replay-nav { display: flex; justify-content: space-between; gap: 12px; }
+.replay-nav .btn { min-width: 120px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Transaction plates (section 8). A step with no hash shows its result with no link. */
+.tx-plate { justify-self: start; max-width: 100%; }
+.tx-pending { font-size: 13px; font-weight: 600; color: var(--text-2); }
+.plate .tx-pending { color: var(--on-plate-2); }
+
+/* Focus on plates: the page outline colour would vanish against Hull. */
+.plate :focus-visible { outline-color: var(--lime); }
+
+@media (max-width: 600px) {
+  .replay-nav .btn { flex: 1 1 0; min-width: 0; }
+  .replay-result { padding: 16px; }
+}

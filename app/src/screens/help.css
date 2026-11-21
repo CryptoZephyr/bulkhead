@@ -1,0 +1,14 @@
+/* Help (#/help). Native details. Tokens only: no literal colours. */
+.help { display: grid; gap: var(--s4); min-width: 0; }
+.help-list { display: grid; gap: var(--seam); }
+
+.help-item { padding: 0; }
+.help-item summary { list-style: none; cursor: pointer; min-height: 56px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  font-size: 18px; font-weight: 700; color: var(--on-plate); }
+.help-item summary::-webkit-details-marker { display: none; }
+.help-item summary::after { content: "+"; font-size: 26px; font-weight: 500; line-height: 1; color: var(--lime); flex: none; }
+.help-item[open] summary::after { content: "−"; }
+.help-item summary:focus-visible { outline: 2px solid var(--lime); outline-offset: -4px; border-radius: var(--r-plate); }
+.help-item p { padding: 0 20px; font-size: 16px; color: var(--on-plate); max-width: 68ch; }
+.help-item p + p { padding-top: 12px; }
+.help-item[open] p:last-child { padding-bottom: 20px; }

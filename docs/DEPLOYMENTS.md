@@ -70,3 +70,13 @@ The demo account now holds 68 fUSD, is sealed, and its blast radius is 0. It uns
 | Fund demo v2 with 100 fUSD (MsgConvertCoin) | 100 fUSD, blast radius 5.00 | 2AEE70588179627494D6C2B0D0B4B0A6FABDA1154D87427E3E69E5A17C4DB442 |
 
 The earlier factory and demo accounts stay on chain; the replay and activity history link to their transactions.
+
+## Agent key renewal and QoreX funding (21 November)
+
+| Check | Result | Transaction |
+|---|---|---|
+| Renew the agent key (revoke and re-link the same key, same rule, one tx) | expiry moved forward | FBD05D236AF1534DD63E2918F2D17DF29073EB362275DBB7AB6A689BD1805632 |
+| Renewed key pays 0.50 fUSD | paid | |
+| Agent pays 1.50 after 24.00 that day | blocked by the chain's 25.00 a day rule | |
+| QoreX (official wallet mock, real signing) converts 1.00 fUSD into demo v2 | 100 to 101 fUSD | 9C16E0E76D936BD82164901B10AE0F6CD082B61D4E74142D250CD8095C8B4F67 |
+| QoreX sends 0.01 QOR to demo v2 | arrived | D00F44FA649E73414BB8E8C65E1E71C6005D60BF519375B537C046BF8EE06740 |

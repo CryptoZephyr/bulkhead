@@ -276,3 +276,89 @@ describe("Sentinels (I4)", async () => {
     await assert.rejects(account.write.tightenPolicy([NATIVE, { perTxCap: 0n, periodCap: 0n, floor: parseEther("100") }], s), /NotEveryday/);
   });
 });
+
+describe("Phone-only seal", async () => {
+  it("the phone seals on its own with a Safety-key signature, relayed by anyone", async () => {
+    const env = await setup();
+    const { account } = await deployAccount(env);
+    const dl = deadline();
+    const sig = await approve(env, await account.read.digest([2, "0x", 30n, dl]));
+    await account.write.sealWithApproval([30n, dl, sig], { account: env.stranger.account });
+    assert.equal(await account.read.sealed_(), true);
+  });
+
+  it("refuses a forged phone seal", async () => {
+    const env = await setup();
+    const { account } = await deployAccount(env);
+    await assert.rejects(account.write.sealWithApproval([31n, deadline(), "0x1234"]), /BadSafetySignature/);
+  });
+
+  it("a phone seal cancels queued widenings", async () => {
+    const env = await setup();
+    const { account } = await deployAccount(env);
+    const dl = deadline();
+    const s1 = await approve(env, await account.read.digest([16 + 3, "0x", 32n, dl]));
+    await account.write.queueLoosen([3, "0x", 32n, dl, s1]);
+    const s2 = await approve(env, await account.read.digest([2, "0x", 33n, dl]));
+    await account.write.sealWithApproval([33n, dl, s2]);
+    await env.networkHelpers.mine(50);
+    await assert.rejects(account.write.executeLoosen([3, "0x", 32n]), /CancelledByTighten/);
+  });
+});
+
+describe("Lost phone", async () => {
+  async function newPhone(env: Env) {
+    await env.keys.write.setKey([env.payee.account.address, "0x0707", true]);
+    return env.payee.account.address;
+  }
+
+  it("the laptop proposes a new phone: the account seals at once and the change waits", async () => {
+    const env = await setup();
+    const { account } = await deployAccount(env);
+    const next = await newPhone(env);
+    await account.write.proposeSafety([next]);
+    assert.equal(await account.read.sealed_(), true);
+    await assert.rejects(account.write.confirmSafety(), /TooEarly/);
+    await env.networkHelpers.mine(200);
+    await account.write.confirmSafety({ account: env.stranger.account });
+    assert.equal((await account.read.safety()).toLowerCase(), next.toLowerCase());
+    assert.equal(await account.read.sealed_(), true);
+  });
+
+  it("the old phone vetoes a replacement it didn't ask for", async () => {
+    const env = await setup();
+    const { account } = await deployAccount(env);
+    const next = await newPhone(env);
+    await account.write.proposeSafety([next]);
+    const dl = deadline();
+    const data = encode([{ type: "address" }], [next]);
+    const sig = await approve(env, await account.read.digest([3, data, 40n, dl]));
+    await account.write.cancelSafetyChangeWithApproval([40n, dl, sig]);
+    await env.networkHelpers.mine(200);
+    await assert.rejects(account.write.confirmSafety(), /NoSafetyChange/);
+  });
+
+  it("only the laptop key can propose, and the new phone's key must be proven", async () => {
+    const env = await setup();
+    const { account } = await deployAccount(env);
+    await assert.rejects(account.write.proposeSafety([env.payee.account.address], { account: env.stranger.account }), /NotEveryday/);
+    await env.keys.write.setKey([env.payee.account.address, "0x0707", false]);
+    await account.write.proposeSafety([env.payee.account.address]);
+    await env.networkHelpers.mine(200);
+    await assert.rejects(account.write.confirmSafety(), /SafetyKeyNotProven/);
+  });
+
+  it("the new phone, once confirmed, is the one that approves", async () => {
+    const env = await setup();
+    const { account } = await deployAccount(env);
+    const next = await newPhone(env);
+    await account.write.proposeSafety([next]);
+    await env.networkHelpers.mine(200);
+    await account.write.confirmSafety();
+    // The old phone's key no longer authorises anything: an approval that would match the old key now fails.
+    await env.keys.write.setKey([env.safety.account.address, "0x", false]);
+    const dl = deadline();
+    const oldSig = await approve(env, await account.read.digest([16 + 3, "0x", 41n, dl]));
+    await assert.rejects(account.write.queueLoosen([3, "0x", 41n, dl, oldSig]), /BadSafetySignature/);
+  });
+});

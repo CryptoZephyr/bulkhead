@@ -70,14 +70,13 @@ export async function settle(store: Store, id: string, outcome: { status: "appro
 /** Vercel Blob: one JSON object per request. Requests hold only ciphertext, so public blob URLs expose nothing readable. */
 export class BlobStore implements Store {
   async list(): Promise<QueuedRequest[]> {
-    const { list } = await import("@vercel/blob");
-    const { blobs } = await list({ prefix: "requests/" });
-    const rows = await Promise.all(blobs.map((b) => fetch(`${b.url}?v=${Date.now()}`, { cache: "no-store" }).then((r) => r.json() as Promise<QueuedRequest>).catch(() => null)));
+    const { folders, readLatest } = await import("./blobjson.js");
+    const rows = await Promise.all((await folders("requests")).map((id) => readLatest<QueuedRequest>(`requests/${id}`).catch(() => null)));
     return rows.filter((r): r is QueuedRequest => !!r);
   }
   async put(r: QueuedRequest) {
-    const { put } = await import("@vercel/blob");
-    await put(`requests/${r.id}.json`, JSON.stringify(r), { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType: "application/json", cacheControlMaxAge: 0 });
+    const { writeVersion } = await import("./blobjson.js");
+    await writeVersion(`requests/${r.id}`, r);
   }
 }
 

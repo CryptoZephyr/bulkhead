@@ -11,6 +11,7 @@ import { verifyMessage, type Address, type Hex } from "viem";
 import accountAbi from "../src/chain/abi/BulkheadAccount.json" with { type: "json" };
 import { pub } from "../server/relayer.js";
 import { plan, planRequest, sameAsChain, validate, isQuiet, DEFAULTS, BadPilot, type PilotSettings, type LiveTarget } from "../server/pilot.js";
+import { readLatest, writeVersion, folders } from "../server/blobjson.js";
 import { readChain, applyTarget, pilotKey, type ChainView } from "../server/pilotChain.js";
 
 export const config = { runtime: "nodejs", maxDuration: 60 };
@@ -27,14 +28,11 @@ const hasBlob = () => !!process.env.BLOB_READ_WRITE_TOKEN;
 async function getBook(a: string): Promise<Book> {
   a = a.toLowerCase();
   if (!hasBlob()) return structuredClone(mem.get(a) ?? { account: a, settings: null, log: [] });
-  const { list } = await import("@vercel/blob");
-  const { blobs } = await list({ prefix: `pilot/${a}.json` });
-  return blobs[0] ? (await fetch(`${blobs[0].url}?v=${Date.now()}`, { cache: "no-store" })).json() : { account: a, settings: null, log: [] };
+  return (await readLatest<Book>(`pilot/${a}`)) ?? { account: a, settings: null, log: [] };
 }
 async function putBook(b: Book) {
   if (!hasBlob()) { mem.set(b.account, structuredClone(b)); return; }
-  const { put } = await import("@vercel/blob");
-  await put(`pilot/${b.account}.json`, JSON.stringify(b), { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType: "application/json", cacheControlMaxAge: 0 });
+  await writeVersion(`pilot/${b.account}`, b);
 }
 const log = (b: Book, e: Omit<LogEntry, "at">) => { b.log.unshift({ ...e, at: Date.now() }); b.log = b.log.slice(0, 60); };
 
@@ -107,11 +105,10 @@ async function handler(req: Request): Promise<Response> {
   try {
     if (req.method === "GET" && url.searchParams.get("cron")) {
       if (!hasBlob()) return Response.json({ ran: 0 });
-      const { list } = await import("@vercel/blob");
-      const { blobs } = await list({ prefix: "pilot/" });
+      const accounts = await folders("pilot");
       let changed = 0;
-      for (const b of blobs) { try { if ((await tick(b.pathname.slice(6, -5))).changed) changed++; } catch { /* next account */ } }
-      return Response.json({ accounts: blobs.length, changed });
+      for (const a of accounts) { try { if ((await tick(a)).changed) changed++; } catch { /* next account */ } }
+      return Response.json({ accounts: accounts.length, changed });
     }
     if (req.method === "GET") {
       const account = url.searchParams.get("account") ?? "";

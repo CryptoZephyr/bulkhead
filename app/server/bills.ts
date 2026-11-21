@@ -6,6 +6,7 @@
 //   - Once approved, the agent pays the bill each month on its due day, from its own capped account,
 //     through decide() in policy.ts. The chain's spending rule caps it again.
 //   - Changes to the bill list must be signed by the account's laptop key (the account's everyday key).
+import { readLatest, writeVersion } from "./blobjson.js";
 import { decodeEventLog, parseAbi, type Address, type Hex } from "viem";
 
 export interface Bill {
@@ -56,16 +57,8 @@ export class MemoryBills implements BillStore {
 
 /** Vercel Blob, one JSON object per account. Holds payees and amounts only: no keys, nothing that can move money. */
 export class BlobBills implements BillStore {
-  async get(a: string): Promise<BillBook> {
-    const { list } = await import("@vercel/blob");
-    const { blobs } = await list({ prefix: `bills/${a.toLowerCase()}.json` });
-    if (!blobs[0]) return empty(a);
-    return (await fetch(`${blobs[0].url}?v=${Date.now()}`, { cache: "no-store" })).json();
-  }
-  async put(b: BillBook) {
-    const { put } = await import("@vercel/blob");
-    await put(`bills/${b.account}.json`, JSON.stringify(b), { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType: "application/json", cacheControlMaxAge: 0 });
-  }
+  async get(a: string): Promise<BillBook> { return (await readLatest<BillBook>(`bills/${a.toLowerCase()}`)) ?? empty(a); }
+  async put(b: BillBook) { await writeVersion(`bills/${b.account}`, b); }
 }
 
 /** The exact text the laptop key signs for a change. The server rebuilds it, so a signature can't be reused for another change. */

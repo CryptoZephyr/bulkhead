@@ -51,3 +51,14 @@
   .topbar .readout { order: 3; flex-basis: 100%; padding-bottom: 8px; }
   .topbar-in { gap: 8px var(--s2); }
 }
+
+.exposure { margin: 0; display: grid; gap: 8px; }
+.exposure svg { width: 100%; height: auto; display: block; }
+.exp-static { stroke: var(--on-plate-2); stroke-width: 1.5; stroke-dasharray: 5 5; }
+.exp-line { fill: none; stroke: var(--lime); stroke-width: 3; stroke-linejoin: round; }
+.exp-now { stroke: var(--on-plate-2); stroke-width: 1; opacity: .6; }
+.exp-dot { fill: var(--lime); }
+.exp-label { fill: var(--on-plate-2); font-size: 12px; }
+.exposure figcaption { font-size: 13px; }
+.plate a:not(.btn) { color: var(--lime); }
+@media (max-width: 600px) { .exp-label { font-size: 24px; } .exp-line { stroke-width: 5; } }

@@ -33,7 +33,7 @@ const myKey = () => { try { return current(); } catch { return null; } };
 
 /** Turns a failed chain or network call into one plain sentence. */
 async function plain<T>(p: Promise<T>, message: string): Promise<T> {
-  try { return await p; } catch { throw new Error(message); }
+  try { return await p; } catch (e) { console.warn("[setup]", message, e); throw new Error(message); }
 }
 
 /** What the user typed, as fUSD base units (6 places). Commas are allowed. */

@@ -144,3 +144,4 @@ button.plate.entry {
 
 /* Focus rings on plates need the light text colour */
 .plate :focus-visible, .sheet :focus-visible { outline-color: var(--on-plate); }
+.hold .ring { pointer-events: none; }

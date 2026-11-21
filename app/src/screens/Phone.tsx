@@ -304,6 +304,8 @@ function Incoming({ req, safety, onAccount, onOutcome }: {
 
   function startHold(e: ReactPointerEvent<HTMLButtonElement>) {
     if (busy || e.button !== 0) return;
+    // Keep the pointer on the button while it re-renders, so the hold isn't cancelled by a stray leave.
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* not supported */ }
     setApproveErr(""); setHolding(true);
     holdTimer.current = window.setTimeout(() => {
       holdTimer.current = null;

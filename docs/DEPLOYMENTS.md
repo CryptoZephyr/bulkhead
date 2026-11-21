@@ -88,3 +88,5 @@ The earlier factory and demo accounts stay on chain; the replay and activity his
 - Approval queue: Vercel Blob store "bulkhead-queue" (ciphertext only). Checked live: a request written in one call was read back and settled in another.
 - Checked live: the site loads the demo account from the chain with no errors; gateway reads work, paths outside the allowlist are refused (403); the queue refuses anything that isn't a QoreSeal envelope (400).
 - Secrets are not set yet, so /api/relay and /api/agent* answer 503 "not configured". The owner adds them in the Vercel dashboard: RELAYER_MNEMONIC, AGENT_OWNER_MNEMONIC, AGENT_KEY_HEX, SERV_API_KEY.
+
+Dedicated server keys (21 November): relayer qor1jucepu367uyf74dtrpqnxyawktagxaqslp6ffv (20 QOR, PQ key registered) and the bill agent's own account qor1h2cjmwcauhacd5w29j9ee5x88xz6349g7u0209 / 0xbAB12dbb1de5FB86D1CA2C8B9cd0c73985A8D4A8 (50 fUSD, 3 QOR, PQ key registered). Their mnemonics are not in the repo; the owner stores them in Vercel as Sensitive variables.

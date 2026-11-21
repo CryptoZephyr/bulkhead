@@ -12,7 +12,7 @@ import "./agent.css";
 const T = TOKENS.fUSD;
 const UNIT = 10n ** BigInt(T.decimals);
 // The agent's own account, from the testnet run and the agent compartment in docs/DEPLOYMENTS.md.
-const AGENT_ACCOUNT = "0x361335D30D6cE1645e802B8df27606A9f1713073" as Address;
+const AGENT_ACCOUNT = "0xbAB12dbb1de5FB86D1CA2C8B9cd0c73985A8D4A8" as Address;
 const DEMO_ACCOUNT = DEPLOYMENT.demoAccount as Address;
 
 // The rule in plain words. TODO: read these from the agent's on-chain policy once the lead wires it.

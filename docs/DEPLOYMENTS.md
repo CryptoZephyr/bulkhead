@@ -52,7 +52,7 @@ The demo account now holds 68 fUSD, is sealed, and its blast radius is 0. It uns
 
 | Contract | Address |
 |---|---|
-| BulkheadFactory v2 (current) | 0xe723f38ffb199548f96da2b6cc677cbb2740372f |
+| BulkheadFactory v2 | 0xe723f38ffb199548f96da2b6cc677cbb2740372f |
 | Demo account v2 (current, 100 fUSD, open) | 0x3d68f146EaEbFBCB1C0f64eFC07DbD687fc76959 |
 | Test account v2 (phone replaced, sealed) | 0x5412c0F2267872aFc7E53312d6A25a778619d0Ca |
 
@@ -101,3 +101,27 @@ Dedicated server keys (21 November): relayer qor1jucepu367uyf74dtrpqnxyawktagxaq
 | Relayer: real ML-DSA-87 phone approval (add payee on demo v2) | 200, tx 0x02f5f2c2c7dcdb097895508c4c5c2d4bec8abb83cb4bc6883b2440a98666d3a5 |
 | Agent: poisoned "pay 5000 to an unknown address" invoice | ask-phone, nothing paid, queued sealed to the phone (2,599-char envelope, amount not in plain text) |
 | Agent: invoice whose address the model mangled | rejected, nothing paid |
+
+## Contracts v3 (21 November, round 25): the pilot, a blast radius that breathes
+
+The pilot is added only by the phone (Loosen.SetPilot, real ML-DSA-87, then the widening delay). It moves the live walls inside the phone-signed ceiling, here 5.00 per payment and 15.00 a day. A raise closes itself when it expires.
+
+| Contract | Address |
+|---|---|
+| BulkheadFactory v3 (current) | 0x6b1f671a674ebe6d0bcfba235e9f4874e431626b |
+| Pilot test account v3 (17 fUSD, open) | 0xB1819340FeD3bD5634ff7D4BCD1cB704b7329f48 |
+| Pilot key | 0x617DE59bcA65Ce7208dB8c77ebCF7382833aE159 |
+
+| Step | Result | Transaction |
+|---|---|---|
+| Deploy factory v3 | OK, gas 4,040,195 | 0x427489237244fb7bdb87fa864f08a53dd95254b8b3664abe85b8675e058d16dd |
+| Deploy account v3, real ML-DSA-87 | OK, gas 3,084,158 | 0xde03a66bd9529412c68d1d0063edc10b758d5fb3a4ebe02db6e74988fa80d99b |
+| Fund 20 fUSD (MsgConvertCoin) | blast radius 5.00 | 8B127B55B5BDD3F969AE0926D0DC49EA5971A75C228CE97DBCB2CACA44231E6C |
+| Phone signs "add the pilot" | queued | 0x8a55eff94a054b5f75d61c981358b9275d9ed83e6173a9a0d4ccf2e4a5c9e5af |
+| Run it after the delay | pilot set | 0xc2bee834603335d798687d372ab412218b844ad3eb624f8cf82953672bbe23c8 |
+| Pilot lowers the wall for the night | blast radius 0.40 | 0x33ef4419a79d09fee238d5129b8636edbe9d9630726f62f3d15935cd90d07a44 |
+| Stolen laptop tries 5.00 at night | HeldByPilot, nothing moved, not sealed | 0x33cf9721a05de114d82628e55c3579bc892cbed57831d124fdeccdc40c33d2f4 |
+| Pilot raises to the ceiling for 40 blocks | blast radius 5.00 | 0x525d251d166e4eaa8b54b58f93752d5a788f74c03cb70947ee8b064854f3cce5 |
+| Owner pays 3.00 during the raise | Spent, 17 fUSD left | 0x99c24bbea9d9bdf64e09520e2dc9fe0167e7f1c28d303439cf43924be201da41 |
+| Pilot tries to go above the ceiling | refused, AbovePolicy | |
+| The raise expires, no pilot action | blast radius 0.00 (rest 0.40 a day, 3.00 already spent today) | |

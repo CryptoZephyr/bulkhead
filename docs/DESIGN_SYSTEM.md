@@ -1,6 +1,6 @@
 # Bulkhead design system (proposal)
 
-Status: revision 3, 21 November 2026. The owner supplied the logo and chose its colours for the palette (option a). Revision 2: Revision 1 reused eleven of Bell's specific inventions. The owner asked for all of them to be replaced, starting with the footer, and kept the animations. Every decision in section 14 waits for the owner. Frontend build starts only when the owner says so.
+Status: revision 3, 21 November 2026. All decisions approved by the owner on 21 November 2026. Phase 2 build started. The owner supplied the logo and chose its colours for the palette (option a). Revision 2: Revision 1 reused eleven of Bell's specific inventions. The owner asked for all of them to be replaced, starting with the footer, and kept the animations. Every decision in section 14 waits for the owner. Frontend build starts only when the owner says so.
 
 ## 1. The idea
 
@@ -179,14 +179,14 @@ The footer is a closing hero, the last thing a visitor sees and a second chance 
 
 ## 14. Decisions for the owner
 
-- [ ] Direction: the hull built from plates, seams and compartments.
-- [ ] Colour split: Bone 60, Hull 30, Lime 10, rust warnings.
-- [ ] Surfaces: plates with 6px radius, 4px seams, the weld line, no shadows.
-- [ ] Status: the hull row as a chart, separate from the logo.
-- [ ] Landing: the live attack replay as the hero.
-- [ ] Setup: building the hull, no step counter.
-- [ ] Navigation: left rail on the laptop, network readout in the top bar.
-- [ ] Typeface: Archivo with IBM Plex Mono.
+- [x] Direction: the hull built from plates, seams and compartments.
+- [x] Colour split: Bone 60, Hull 30, Lime 10, rust warnings.
+- [x] Surfaces: plates with 6px radius, 4px seams, the weld line, no shadows.
+- [x] Status: the hull row as a chart, separate from the logo.
+- [x] Landing: the live attack replay as the hero.
+- [x] Setup: building the hull, no step counter.
+- [x] Navigation: left rail on the laptop, network readout in the top bar.
+- [x] Typeface: Archivo with IBM Plex Mono.
 - [x] Logo: supplied by the owner, redraw confirmed and locked (21 Nov).
 - [x] Palette from the logo: Hull #0E2A13 and Lime #D8FFA6 (owner chose option a, 21 Nov).
 - [x] Footer: hero footer (owner, 21 Nov).
@@ -196,3 +196,109 @@ The footer is a closing hero, the last thing a visitor sees and a second chance 
 - Chain reads and writes through `@qorechain/sdk`, `@qorechain/evm` and viem. `@qorechain/react` for hooks only. QoreX through `@qorechain/qorex-types` with our own connect sheet.
 - Self-hosted fonts. Native-first accessibility: native dialog for sheets, native radio fieldsets, native buttons with aria-busy, a polite live region for progress and an assertive one for errors.
 - Before a screen is done: axe-core in Playwright, keyboard-only pass, TalkBack and VoiceOver, 200% zoom, reduced motion, 44px touch targets, screenshots in light and dark at both widths.
+
+## 16. Screens and their UX (Phase 2)
+
+Each screen lists its one job, what it shows first, its one main action, and the UX improvements over a typical wallet screen. Every screen also follows the rules in sections 2 and 3.
+
+### 16.1 Landing
+
+- Job: make a visitor understand damage-bounded money in ten seconds and start.
+- First: the live attack replay. A stolen laptop key tries three things against a real testnet account (a big payment, a token approval, draining Savings), and each one fails on screen with its real transaction listed beside it.
+- Main action: "Create my Bulkhead".
+- UX improvements:
+  - The replay starts on its own, muted of motion when reduced motion is on, and can be paused and stepped with the keyboard.
+  - Every claim has a proof link next to it, so a judge never has to trust a sentence.
+  - A visitor who scrolls past the replay sees the three compartments with real numbers, then the hero footer. No long marketing page.
+
+### 16.2 Setup (building the hull)
+
+- Job: get from nothing to a funded, phone-protected account without confusion.
+- First: an empty hull outline with one sentence: "Let's build your hull. It takes about two minutes."
+- Steps, each adding a piece of the hull on screen: create the laptop key (Everyday appears), pair the phone by QR (the Savings wall appears), set the walls with suggested values, fund from QoreX (the fill rises).
+- UX improvements:
+  - Suggested walls come from what the user plans to keep and spend, asked in plain words ("How much do you spend in a normal day?"), never as raw caps.
+  - The user can leave at any step and come back to the same place. Progress is read from the chain, not from local storage.
+  - Pairing shows both devices in one picture with a live "Phone connected" state, so the user knows the phone step worked before moving on.
+  - Funding shows the exact QoreX request before the wallet opens: "QoreX will ask you to send 50.00 fUSD to your Bulkhead account."
+  - The recovery account is part of setup, with a plain reason: "If you ever think you're hacked, everything goes here with one tap."
+
+### 16.3 Hull (home)
+
+- Job: answer "is my money safe and how much can I spend?" at a glance.
+- First: the hull row, then one sentence: "Everything is holding. You can spend 4.20 fUSD more today."
+- Main action: "Pay" (or "Unseal from my phone" when sealed).
+- UX improvements:
+  - The worst-case number sits above the fold on every width.
+  - When something is wrong, the sentence and the main action change to fix it. The user never has to hunt for the problem.
+  - "Seal everything" is always one tap away, in the same place.
+  - Recent activity shows the last three items inline with a link to Activity, so home answers "what just happened?".
+
+### 16.4 Pay
+
+- Job: send money without fear of breaking a wall by accident.
+- First: payee, amount, and the compartment it comes from, with a live check under the amount.
+- Main action: "Pay" when inside the walls, "Ask my phone" when it would break a wall.
+- UX improvements:
+  - The check runs before sending: "Inside your walls" in Kelp, or "This is over your 5.00 limit, so it needs your phone" in Rust. The user never trips a tripwire by accident from the app. Tripwires are for stolen keys.
+  - Recent payees appear as one-tap choices. A new payee says so: "First payment to this address."
+  - Addresses are shown in groups of four characters and checked as the user types.
+  - After paying, the screen shows the receipt in place with the proof link and the new blast radius.
+
+### 16.5 Walls
+
+- Job: change the walls with full understanding of what changes.
+- First: each compartment's caps, floor, payees and watchers as plain sentences ("Up to 5.00 fUSD per payment, 15.00 per day").
+- Actions: tightening is instant with one button; widening opens a sheet that says it goes to the phone and takes effect after the delay.
+- UX improvements:
+  - Every change shows its effect on the worst case before it's made: "Your worst case goes from 15.00 to 80.00 fUSD a day."
+  - Tighten and widen are visibly different: tighten is a plain action, widen always shows the phone glyph and the delay.
+  - Queued widenings show a countdown and a "Cancel" that is just a tighten, explained in one line.
+
+### 16.6 Agent
+
+- Job: let the user trust and supervise the bill agent.
+- First: the agent's budget (its own account balance), its rule in plain words, and its last decisions.
+- Main action: "Top up from my phone" or "Approve" for a waiting request.
+- UX improvements:
+  - Every decision shows the deterministic policy reason, not the model's text: "Paid: approved payee, 8.00 is within 10.00 per payment."
+  - Blocked attempts are shown as the product working: "The chain blocked a 15.00 payment. Its rule allows 10.00."
+  - Invoices show the payee and amount the policy read, with the raw invoice behind a disclosure, so injected text is never presented as an instruction.
+  - "Pause agent" and "Revoke agent" are always visible.
+
+### 16.7 Activity
+
+- Job: show what happened, with proof.
+- First: a list, newest first, grouped by day, each row with what, how much, which compartment and its state.
+- UX improvements:
+  - Filters by compartment and by "needs attention".
+  - Each row opens a receipt with every on-chain step and its transaction hash plate.
+  - Tripwires and blocked attempts are part of the history, so the user can see attacks that failed.
+
+### 16.8 Phone safety view
+
+- Job: approve or refuse widening safely, from the second device.
+- First at rest: the hull row in miniature and "Nothing to approve."
+- A request: what changes (now and after, joined by a seam), when it takes effect, who asked (the paired laptop), and the decoded transaction from the Custody kit check.
+- Main action: hold to approve. Secondary: "Refuse", which also seals the affected compartment if the user didn't ask for it.
+- UX improvements:
+  - If the decoded transaction doesn't match the request, the approve control is removed and the screen says so.
+  - "I didn't ask for this" is a first-class answer: it refuses and seals.
+  - Break-glass is reachable from the phone at rest, behind the two-step sheet.
+  - Requests expire visibly, with the time left.
+
+### 16.9 Attack replay
+
+- Job: prove the walls hold, with real transactions.
+- First: the scenario and the account's worst case before the attack.
+- Steps: the stolen key pays over the cap (sealed, nothing moved), approves a token to a thief (blocked by scope), and tries Savings (refused). Each step has its real transaction.
+- UX improvements: step-by-step with Next and Back, the hull row reacting at each step, and a closing line with the total lost: "0.00 fUSD left the account."
+
+### 16.10 Contracts and proof
+
+- Job: let anyone verify the contracts.
+- Shows the factory and account addresses, read from the deployment record, with copy and explorer plates, the test network, and links to recent proof transactions.
+
+### 16.11 Help
+
+- Short answers to real questions (What is a blast radius? Why does my phone need to approve? What happens if I lose my phone?), then the full hero footer.

@@ -56,7 +56,6 @@ const URL = process.env.E2E_URL ?? "http://127.0.0.1:5173/";
     await phone.screenshot({ path: SHOTS + "phone-request.png", fullPage: true });
     console.log("  phone shows:", (await phone.innerText("main, body")).replace(/\s+/g, " ").match(/Create your Bulkhead account.{0,260}/)?.[0]);
     await hold.scrollIntoViewIfNeeded(); const box = await hold.boundingBox();
-      return { top: el && (el.className.baseVal ?? el.className), disabled: b.disabled, bw: b.getBoundingClientRect().width }; }, [box.x + box.width / 2, box.y + box.height / 2]));
     await phone.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await phone.mouse.down(); await phone.waitForTimeout(1300); await phone.mouse.up();
 
     await phone.waitForFunction(() => /0x[0-9a-f]{4,}…|explore\.qore\.network\/tx\//.test(document.body.innerHTML), null, { timeout: 180000 });

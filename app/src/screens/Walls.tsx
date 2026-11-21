@@ -165,8 +165,7 @@ export function WallsScreen() {
                   kind="primary"
                   block
                   run={async (step) => {
-                    // TODO: the lead confirms the 20-block delay from the contract.
-                    await actions.requestWiden(ACCOUNT, "SetPolicy", next, step);
+                    await actions.requestWiden(ACCOUNT, { kind: "SetPolicy", asset: TOKENS.fUSD.address, perTxCap: String(next.perTxCap), periodCap: String(next.periodCap), floor: String(next.floor) }, step);
                     return "Sent to your phone";
                   }}
                 >

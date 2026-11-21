@@ -186,8 +186,7 @@ export function PayScreen() {
             key="ask"
             block
             run={async (step) => {
-              // TODO: the lead confirms the request kind for a single payment over a wall. SetPolicy is a placeholder.
-              await actions.requestWiden(ACCOUNT, "SetPolicy", { payment: { to: payee, amount: amt } }, step);
+              await actions.requestWiden(ACCOUNT, { kind: "Spend", asset: TOKENS.fUSD.address, to: payee as `0x${string}`, amount: String(amt) }, step);
               return "Sent to your phone";
             }}
           >

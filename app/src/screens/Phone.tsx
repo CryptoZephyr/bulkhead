@@ -12,6 +12,7 @@ import {
 } from "../chain/device";
 import {
   approveQueued, describe, openRequest, signIntent, targetOf, type Intent, type RequestBody,
+  phoneAct, delayText, pendingPhoneChange,
 } from "../chain/requests";
 import { ActionButton, type Step } from "../ui/Button";
 import { Mark } from "../ui/Mark";
@@ -216,12 +217,37 @@ function AtRest({ account, safety }: { account: Address | null; safety: SafetyKe
         )}
         {err && !acct && <p role="alert" className="flood-line">{err}</p>}
       </section>
+      {account && <PhoneChangeAlert account={account} safety={safety} />}
       <section className="rest" aria-labelledby="rest-h">
         <h2 id="rest-h">Nothing to approve.</h2>
         <p className="muted">Your phone signs only when a change is waiting for it.</p>
       </section>
       <BreakGlass account={account} safety={safety} />
     </>
+  );
+}
+
+/** A lost-phone replacement is in progress. If this phone still exists, it's in your hand: you can stop it. */
+function PhoneChangeAlert({ account, safety }: { account: Address; safety: SafetyKey }) {
+  const [p, setP] = useState<{ next: Address; readyAt: bigint; block: bigint } | null>(null);
+  useEffect(() => {
+    let on = true;
+    const load = () => pendingPhoneChange(account).then((x) => { if (on) setP(x); }).catch(() => undefined);
+    load(); const t = setInterval(load, 10_000);
+    return () => { on = false; clearInterval(t); };
+  }, [account]);
+  if (!p) return null;
+  const left = p.readyAt > p.block ? p.readyAt - p.block : 0n;
+  const hours = Math.max(1, Math.round((Number(left) * 1.42) / 3600));
+  return (
+    <section className="plate" role="alert" aria-labelledby="swap-h" style={{ display: "grid", gap: 12 }}>
+      <h2 id="swap-h" style={{ color: "var(--on-plate)" }}>Someone is replacing this phone</h2>
+      <p>Your laptop asked to make <span className="mono">{p.next}</span> the account's new phone. The account is sealed while it waits, about {hours} more hours.</p>
+      <p className="muted">If you didn't ask for this, stop it now. Your laptop key may be stolen.</p>
+      <ActionButton block run={async (step) => { await phoneAct(safety.account, account, { kind: "CancelSafetyChange", pending: p.next }, step); return "Stopped. This phone stays."; }}>
+        Stop it, this phone stays
+      </ActionButton>
+    </section>
   );
 }
 
@@ -236,6 +262,8 @@ function Incoming({ req, safety, onAccount, onOutcome }: {
   const clock = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
 
   const [holding, setHolding] = useState(false);
+  const [delay, setDelay] = useState("");
+  useEffect(() => { delayText(req.account as Address).then(setDelay).catch(() => setDelay("")); }, [req.account]);
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<{ label: string; p: number }>({ label: "", p: 0 });
   const [approveErr, setApproveErr] = useState("");
@@ -295,6 +323,8 @@ function Incoming({ req, safety, onAccount, onOutcome }: {
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error ?? "The queue didn't take it.");
+      // A request you didn't ask for means the laptop may be compromised: seal the account from the phone.
+      if (d.s === "ok") await phoneAct(safety.account, d.body.account, { kind: "Seal" }, () => undefined);
       onOutcome({ id: req.id, kind: "refused" });
     } catch (e) {
       setRefuseErr(`Not refused. ${e instanceof Error ? e.message : String(e)}`);
@@ -362,7 +392,7 @@ function Incoming({ req, safety, onAccount, onOutcome }: {
             </div>
           )}
 
-          {view.delayed && <p className="muted takes">Takes effect about 20 blocks after you approve</p>}
+          {view.delayed && <p className="muted takes">Takes effect {delay || "after a waiting time"} after you approve. Any tighten on your laptop cancels it.</p>}
 
           <dl className="facts">
             <div><dt>Asked by</dt><dd>{d.s === "ok" && d.body.from === "agent" ? "Your bill agent" : "Your laptop"}</dd></div>
@@ -405,7 +435,7 @@ function Incoming({ req, safety, onAccount, onOutcome }: {
               {view && (
                 <p className="muted">
                   {view.title}.{view.now ? ` Now: ${view.now}.` : ""}{view.after ? ` After: ${view.after}.` : ""}
-                  {view.delayed ? " Takes effect about 20 blocks after approval." : ""}
+                  {view.delayed ? ` Takes effect ${delay || "after a waiting time"} after approval.` : ""}
                 </p>
               )}
               <div className="sheet-actions">
@@ -428,7 +458,7 @@ function Incoming({ req, safety, onAccount, onOutcome }: {
         <button type="button" className="btn btn-secondary" aria-busy={busy} disabled={busy} onClick={() => void refuse()}>
           I didn't ask for this
         </button>
-        <p className="muted">Refuses this request. Nothing changes.</p>
+        <p className="muted">Refuses this request and seals the account from this phone.</p>
         <p role="alert" className="err">{refuseErr}</p>
       </div>
     </section>
@@ -448,7 +478,7 @@ function OutcomeCard({ outcome, onDismiss }: { outcome: Outcome; onDismiss: () =
           </a>
         </>
       ) : (
-        <p role="status" className="refused">Refused. Nothing changed. Seal the account from your laptop now: it's one tap.</p>
+        <p role="status" className="refused">Refused and sealed. Nothing can leave the account until you unseal it from this phone.</p>
       )}
       <button type="button" className="btn btn-secondary dismiss" onClick={onDismiss}>Back to your hull</button>
     </section>

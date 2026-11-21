@@ -5,6 +5,10 @@ import { pub } from "../chain/account";
 import accountAbi from "../chain/abi/BulkheadAccount.json";
 import { DEPLOYMENT } from "../chain/config";
 import { ActionButton } from "../ui/Button";
+import { actions } from "../chain/actions";
+import { pairing } from "../chain/device";
+import { myAccount } from "../chain/me";
+import { pendingPhoneChange } from "../chain/requests";
 import "./settings.css";
 
 type Theme = "system" | "light" | "dark";
@@ -14,7 +18,8 @@ const OPTIONS: { id: Theme; label: string }[] = [
   { id: "light", label: "Light" },
   { id: "dark", label: "Dark" },
 ];
-const ACCOUNT = DEPLOYMENT.demoAccount as Address;
+const ACCOUNT = myAccount().address;
+void DEPLOYMENT;
 const ZERO = "0x0000000000000000000000000000000000000000";
 
 /** Reads the saved choice. Storage can be blocked, so this falls back to System. */
@@ -100,12 +105,58 @@ export function SettingsScreen() {
         <p className="muted small">Setting it goes to your phone and takes effect after the delay.</p>
       </section>
 
-      <section className="plate" aria-labelledby="phone-h">
-        <h2 id="phone-h">Paired phone</h2>
-        <p>No phone paired yet</p>
-        <p className="muted small">Only your phone can widen a wall.</p>
-        <a className="btn btn-primary" href="#/phone">Pair my phone</a>
-      </section>
+      <PhoneSection />
     </div>
+  );
+}
+
+/** Paired phone, and what to do if it's lost (docs/DESIGN_SYSTEM.md 16.8). */
+function PhoneSection() {
+  const p = pairing();
+  const [next, setNext] = useState("");
+  const [pending, setPending] = useState<{ next: Address; readyAt: bigint; block: bigint } | null>(null);
+  useEffect(() => {
+    let on = true;
+    const load = () => pendingPhoneChange(ACCOUNT).then((x) => { if (on) setPending(x); }).catch(() => undefined);
+    load(); const t = setInterval(load, 10_000);
+    return () => { on = false; clearInterval(t); };
+  }, []);
+  const valid = /^0x[0-9a-fA-F]{40}$/.test(next.trim());
+  const left = pending && pending.readyAt > pending.block ? pending.readyAt - pending.block : 0n;
+  const hours = Math.round((Number(left) * 1.42) / 3600);
+  return (
+    <section className="plate" aria-labelledby="phone-h">
+      <h2 id="phone-h">Paired phone</h2>
+      {p ? <p className="mono addr">{p.phoneEvm}</p> : <p>No phone paired yet</p>}
+      <p className="muted small">Only your phone can widen a wall.</p>
+      {!p && <a className="btn btn-primary" href="#/setup">Pair my phone</a>}
+
+      {pending ? (
+        <div className="lost" role="status">
+          <h3>Replacing your phone</h3>
+          <p>New phone <span className="mono">{pending.next}</span>. Your account is sealed while it waits.</p>
+          {left > 0n
+            ? <p>{hours > 0 ? `About ${hours} more hours.` : "Less than an hour left."} If your old phone turns up, it can stop this.</p>
+            : <ActionButton run={async (step) => { await actions.confirmNewPhone(ACCOUNT, step); return "Your new phone is in charge"; }}>Switch to my new phone</ActionButton>}
+          <ActionButton kind="secondary" run={async (step) => { await actions.cancelNewPhone(ACCOUNT, step); return "Stopped"; }}>Stop the replacement</ActionButton>
+        </div>
+      ) : p && (
+        <details className="lost">
+          <summary>Lost your phone?</summary>
+          <p>Set up Bulkhead on a new phone, create its Safety key, then enter its address here.</p>
+          <p className="muted small">Your account seals at once and the switch waits about three days, so a thief with your laptop alone can't take over. Your old phone can stop it if it turns up.</p>
+          <label className="field">
+            <span>New phone's address</span>
+            <input className="mono" placeholder="0x" value={next} onChange={(e) => setNext(e.target.value)} autoComplete="off" spellCheck={false} />
+          </label>
+          {next && !valid && <p role="alert" className="flood-line">That isn't a 0x address of 40 characters.</p>}
+          {valid && (
+            <ActionButton run={async (step) => { await actions.proposeNewPhone(ACCOUNT, next.trim() as Address, step); return "Sealed. The wait has started."; }}>
+              Seal and start the switch
+            </ActionButton>
+          )}
+        </details>
+      )}
+    </section>
   );
 }

@@ -19,15 +19,17 @@ export type Intent =
   | { kind: "SetRecovery"; recovery: Address }
   | { kind: "Spend"; asset: Address; to: Address; amount: string }   // over the walls, immediate
   | { kind: "BreakGlass"; assets: Address[] }                         // immediate
+  | { kind: "Seal" }                                                  // immediate: the phone seals on its own
+  | { kind: "CancelSafetyChange"; pending: Address }                  // immediate: veto a phone replacement
   | { kind: "Deploy"; salt: Hex; init: DeployInit };                  // the phone authorises its new account
 
 /** BulkheadAccount.Init with amounts as decimal strings (JSON has no bigint). */
 export interface DeployInit {
-  everyday: Address; safety: Address; recovery: Address; periodBlocks: string; loosenDelay: string;
+  everyday: Address; safety: Address; recovery: Address; periodBlocks: string; loosenDelay: string; safetyDelay: string;
   assets: Address[]; policies: { perTxCap: string; periodCap: string; floor: string }[]; payees: Address[];
 }
 export function initArgs(i: DeployInit) {
-  return { ...i, periodBlocks: BigInt(i.periodBlocks), loosenDelay: BigInt(i.loosenDelay),
+  return { ...i, periodBlocks: BigInt(i.periodBlocks), loosenDelay: BigInt(i.loosenDelay), safetyDelay: BigInt(i.safetyDelay),
     policies: i.policies.map((p) => ({ perTxCap: BigInt(p.perTxCap), periodCap: BigInt(p.periodCap), floor: BigInt(p.floor) })) };
 }
 
@@ -45,6 +47,8 @@ export function encodeIntent(i: Intent): { kindId: number; data: Hex } {
     case "SetRecovery": return { kindId: 16 + LOOSEN.SetRecovery, data: encodeAbiParameters([{ type: "address" }], [i.recovery]) };
     case "Spend": return { kindId: 0, data: encodeAbiParameters([{ type: "address" }, { type: "address" }, { type: "uint256" }], [i.asset, i.to, BigInt(i.amount)]) };
     case "BreakGlass": return { kindId: 1, data: encodeAbiParameters([{ type: "address[]" }], [i.assets]) };
+    case "Seal": return { kindId: 2, data: "0x" };
+    case "CancelSafetyChange": return { kindId: 3, data: encodeAbiParameters([{ type: "address" }], [i.pending]) };
     case "Deploy": throw new Error("Deploy is signed against the factory, not an account.");
   }
 }
@@ -54,6 +58,13 @@ function tokenOf(asset: Address) {
 }
 
 /** What the phone shows: computed from the intent and the chain, never from laptop text. */
+/** The account's widening delay in plain words, from the chain (blocks are about 1.42 s on testnet). */
+export async function delayText(account: Address): Promise<string> {
+  const blocks = (await pub.readContract({ address: account, abi: accountAbi, functionName: "loosenDelay" })) as bigint;
+  const min = Math.max(1, Math.round((Number(blocks) * 1.42) / 60));
+  return min >= 90 ? `about ${Math.round(min / 60)} hours` : `about ${min} minutes`;
+}
+
 export async function describe(account: Address, i: Intent): Promise<{ title: string; now?: string; after?: string; delayed: boolean; check: string }> {
   const short = `${account.slice(0, 6)}…${account.slice(-4)}`;
   switch (i.kind) {
@@ -69,6 +80,8 @@ export async function describe(account: Address, i: Intent): Promise<{ title: st
     case "SetRecovery": return { title: "Change the recovery account", after: i.recovery, delayed: true, check: `The call sets the recovery account of ${short}. Nothing else.` };
     case "Spend": { const t = tokenOf(i.asset); return { title: `Send ${fmt(BigInt(i.amount), t.decimals, t.places)} ${t.symbol}`, after: `to ${i.to}`, delayed: false, check: `The call moves ${fmt(BigInt(i.amount), t.decimals, t.places)} ${t.symbol} from ${short} to ${i.to}. Nothing else.` }; }
     case "BreakGlass": return { title: "Send everything to the recovery account", delayed: false, check: `The call moves every listed asset from ${short} to its pinned recovery account. Nothing else.` };
+    case "Seal": return { title: "Seal the account", now: "Open", after: "Sealed", delayed: false, check: `The call seals ${short}. Nothing else.` };
+    case "CancelSafetyChange": return { title: "Stop the phone replacement", now: `Replacing this phone with ${i.pending}`, after: "This phone stays", delayed: false, check: `The call cancels the replacement of this phone on ${short}. Nothing else.` };
     case "Deploy": {
       const lines = i.init.assets.map((a, k) => { const t = tokenOf(a), p = i.init.policies[k]; const f = (n: string) => fmt(BigInt(n), t.decimals, t.places);
         return `${t.symbol}: ${f(p.perTxCap)} per payment, ${f(p.periodCap)} a day, ${f(p.floor)} kept in Savings`; });
@@ -111,6 +124,8 @@ export async function signIntent(phone: UnifiedAccount, account: Address, i: Int
   const sig = toHex(pqcSign(phone.pqc.secretKey, Uint8Array.from(digest.slice(2).match(/../g)!.map((h) => parseInt(h, 16)))));
   if (i.kind === "Spend") return encodeFunctionData({ abi: accountAbi, functionName: "spendWithApproval", args: [i.asset, i.to, BigInt(i.amount), nonce, deadline, sig] });
   if (i.kind === "BreakGlass") return encodeFunctionData({ abi: accountAbi, functionName: "breakGlassWithApproval", args: [i.assets, nonce, deadline, sig] });
+  if (i.kind === "Seal") return encodeFunctionData({ abi: accountAbi, functionName: "sealWithApproval", args: [nonce, deadline, sig] });
+  if (i.kind === "CancelSafetyChange") return encodeFunctionData({ abi: accountAbi, functionName: "cancelSafetyChangeWithApproval", args: [nonce, deadline, sig] });
   return encodeFunctionData({ abi: accountAbi, functionName: "queueLoosen", args: [kindId - 16, data, nonce, deadline, sig] });
 }
 
@@ -134,4 +149,26 @@ export async function approveQueued(q: { id: string; account: Address; envelope:
   await fetch(`/api/requests?id=${q.id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "approved", txHash: j.txHash }) }).catch(() => undefined);
   step("Approved", 1);
   return j.txHash as string;
+}
+
+/** Phone: sign and relay an immediate action of its own (seal, veto a replacement, break-glass). */
+export async function phoneAct(phone: UnifiedAccount, account: Address, i: Intent, step: (l: string, p: number) => void): Promise<string> {
+  step("Signing with your post-quantum key", 0.35);
+  const data = await signIntent(phone, account, i);
+  step("Sending to QoreChain", 0.6);
+  const r = await fetch("/api/relay", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ to: account, data }) });
+  const j = await r.json();
+  if (!r.ok || j.status !== "success") throw new Error(j.error ?? "The chain refused it. Nothing changed.");
+  step("Done", 1);
+  return j.txHash as string;
+}
+
+/** Reads a lost-phone replacement in progress, if any. */
+export async function pendingPhoneChange(account: Address): Promise<{ next: Address; readyAt: bigint; block: bigint } | null> {
+  const [next, readyAt, block] = await Promise.all([
+    pub.readContract({ address: account, abi: accountAbi, functionName: "pendingSafety" }) as Promise<Address>,
+    pub.readContract({ address: account, abi: accountAbi, functionName: "safetyReadyAt" }) as Promise<bigint>,
+    pub.getBlockNumber(),
+  ]);
+  return /^0x0{40}$/i.test(next) ? null : { next, readyAt, block };
 }

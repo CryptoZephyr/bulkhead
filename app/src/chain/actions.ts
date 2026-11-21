@@ -29,6 +29,10 @@ export interface Actions {
   /** Sends a widening request to the paired phone. Returns a request id the phone view looks up. */
   requestWiden(account: Address, intent: Intent, step: Step): Promise<{ requestId: string }>;
   breakGlass(account: Address, assets: Address[], step: Step): Promise<{ txHash: string }>;
+  /** Lost phone: propose a new phone. Seals the account at once; the change waits about three days. */
+  proposeNewPhone(account: Address, phone: Address, step: Step): Promise<{ txHash: string }>;
+  cancelNewPhone(account: Address, step: Step): Promise<{ txHash: string }>;
+  confirmNewPhone(account: Address, step: Step): Promise<{ txHash: string }>;
 }
 
 async function ensureWindow(account: Address, step: Step) {
@@ -80,6 +84,9 @@ export const actions: Actions = {
   tighten: (account, asset, p, step) => write(account, "tightenPolicy", [asset, p], step, "Tightening on QoreChain"),
   seal: (account, step) => write(account, "seal", [], step, "Sealing on QoreChain"),
   breakGlass: (account, assets, step) => write(account, "breakGlass", [assets], step, "Sending everything to your recovery account"),
+  proposeNewPhone: (account, phone, step) => write(account, "proposeSafety", [phone], step, "Sealing your account and starting the wait"),
+  cancelNewPhone: (account, step) => write(account, "cancelSafetyChange", [], step, "Stopping the replacement"),
+  confirmNewPhone: (account, step) => write(account, "confirmSafety", [], step, "Switching to your new phone"),
 
   async requestWiden(account, intent, step) {
     // Sealed to the phone's ML-KEM key, so the server only ever holds ciphertext.

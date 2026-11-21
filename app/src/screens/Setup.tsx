@@ -18,8 +18,10 @@ import "./setup.css";
 
 const T = TOKENS.fUSD;
 const MIN_GAS_UQOR = 300_000n;            // 0.3 QOR: enough for the laptop key's windows
-const PERIOD_BLOCKS = "14400";            // about a day at 6 s a block
-const LOOSEN_DELAY = "600";               // about an hour at 6 s a block
+// QoreChain testnet makes a block about every 1.42 s (measured: 4,871 blocks in 6,924 s).
+const PERIOD_BLOCKS = "60800";            // about a day
+const LOOSEN_DELAY = "2500";              // about an hour
+const SAFETY_DELAY = "182000";            // about three days: replacing a lost phone
 const POLL_MS = 5000;
 const REQUEST_POLL_MS = 3000;
 const REQUEST_POLLS = 400;                // about 20 minutes
@@ -278,7 +280,7 @@ export function SetupScreen() {
     if (!k || !walls || !phone) throw new Error("Unlock your laptop key and finish the steps above first.");
     const salt = toHex(crypto.getRandomValues(new Uint8Array(32)));
     const init: DeployInit = {
-      everyday: k.evm as Address, safety: phone, recovery: NATIVE, periodBlocks: PERIOD_BLOCKS, loosenDelay: LOOSEN_DELAY,
+      everyday: k.evm as Address, safety: phone, recovery: NATIVE, periodBlocks: PERIOD_BLOCKS, loosenDelay: LOOSEN_DELAY, safetyDelay: SAFETY_DELAY,
       assets: [T.address as Address], policies: [walls], payees: [],
     };
     const addr = (await plain(

@@ -158,7 +158,7 @@ export function WallsScreen() {
             ) : (
               <>
                 <span className="phone-line"><StatusMark kind="phone" /></span>
-                <p>Takes effect about 20 blocks after your phone approves.</p>
+                <p>Takes effect about an hour after your phone approves. Any tighten cancels it.</p>
                 {changed.length > wider.length && <p className="muted">Tighter values in this change wait for your phone too.</p>}
                 <ActionButton
                   key="phone"

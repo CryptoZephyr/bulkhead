@@ -9,12 +9,18 @@ export const FUSD = "0x97143b771d34ddb9130b807b135ae675a5a963ca";
 export const RULE = { perPayment: 10_000_000n, perDay: 25_000_000n };
 export const SESSION_SECONDS = 3600;
 
+/** A brand-new account has no abstract-account record yet: the chain answers "not found" instead of an empty list. */
+async function authenticatorsOf(address: string) {
+  try { return await fetchAuthenticators({ rest: REST, address }); }
+  catch (e) { if (/not found|404/i.test((e as Error).message)) return []; throw e; }
+}
+
 export interface KeyStatus { linked: boolean; expiresAt: number | null; secondsLeft: number | null }
 
 export async function agentKeyStatus(ownerMnemonic: string, index: number, agentKeyHex: string, now = Date.now()): Promise<KeyStatus> {
   const owner = await deriveUnifiedAccount(ownerMnemonic, index);
   const pk = Buffer.from(ed25519.getPublicKey(Buffer.from(agentKeyHex.replace(/^0x/, ""), "hex"))).toString("hex");
-  const list = await fetchAuthenticators({ rest: REST, address: owner.cosmos });
+  const list = await authenticatorsOf(owner.cosmos);
   const mine = list.filter((a) => a.pubkeyHex.toLowerCase() === pk && !a.revoked).sort((a, b) => Number(b.expiryUnix - a.expiryUnix))[0];
   if (!mine) return { linked: false, expiresAt: null, secondsLeft: null };
   const expiresAt = Number(mine.expiryUnix) * 1000;
@@ -39,7 +45,7 @@ export async function renewAgentKey(ownerMnemonic: string, index: number, agentK
   const sk = Uint8Array.from(Buffer.from(agentKeyHex.replace(/^0x/, ""), "hex"));
   const pk = ed25519.getPublicKey(sk);
   const status = await agentKeyStatus(ownerMnemonic, index, agentKeyHex);
-  const list = await fetchAuthenticators({ rest: REST, address: owner.cosmos });
+  const list = await authenticatorsOf(owner.cosmos);
   const existing = list.some((a) => a.pubkeyHex.toLowerCase() === Buffer.from(pk).toString("hex") && !a.revoked);
   const expiryUnix = Math.floor(Date.now() / 1000) + SESSION_SECONDS;
   const proof = signAuthenticatorLinkEd25519({ chainId: CHAIN, account: owner.cosmos, privateKey: sk });

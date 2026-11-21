@@ -3,20 +3,14 @@
 //   GET  /api/pair?sid=...                     phone reads them (and checks them against the QR)
 //   POST /api/pair?sid=... { envelope }        phone's sealed reply
 //   GET  /api/pair?sid=...&reply=1             laptop polls for it
+import { readLatest, writeVersion } from "../server/blobjson.js";
 import { MemoryPairs, startPair, laptopKeys, reply, replyOf, BadPair, type PairStore, type PairSession } from "../server/pair.js";
 
 export const config = { runtime: "nodejs" };
 
 class BlobPairs implements PairStore {
-  async get(sid: string): Promise<PairSession | null> {
-    const { list } = await import("@vercel/blob");
-    const { blobs } = await list({ prefix: `pair/${sid}.json` });
-    return blobs[0] ? (await fetch(`${blobs[0].url}?v=${Date.now()}`, { cache: "no-store" })).json() : null;
-  }
-  async put(s: PairSession) {
-    const { put } = await import("@vercel/blob");
-    await put(`pair/${s.sid}.json`, JSON.stringify(s), { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType: "application/json", cacheControlMaxAge: 0 });
-  }
+  async get(sid: string) { return readLatest<PairSession>(`pair/${sid}`); }
+  async put(s: PairSession) { await writeVersion(`pair/${s.sid}`, s); }
 }
 let store: PairStore | null = null;
 const theStore = () => (store ??= process.env.BLOB_READ_WRITE_TOKEN ? new BlobPairs() : new MemoryPairs());

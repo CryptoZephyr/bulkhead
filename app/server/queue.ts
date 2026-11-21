@@ -72,7 +72,7 @@ export class BlobStore implements Store {
   async list(): Promise<QueuedRequest[]> {
     const { list } = await import("@vercel/blob");
     const { blobs } = await list({ prefix: "requests/" });
-    const rows = await Promise.all(blobs.map((b) => fetch(b.url, { cache: "no-store" }).then((r) => r.json() as Promise<QueuedRequest>).catch(() => null)));
+    const rows = await Promise.all(blobs.map((b) => fetch(`${b.url}?v=${Date.now()}`, { cache: "no-store" }).then((r) => r.json() as Promise<QueuedRequest>).catch(() => null)));
     return rows.filter((r): r is QueuedRequest => !!r);
   }
   async put(r: QueuedRequest) {

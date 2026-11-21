@@ -90,3 +90,14 @@ The earlier factory and demo accounts stay on chain; the replay and activity his
 - Secrets are not set yet, so /api/relay and /api/agent* answer 503 "not configured". The owner adds them in the Vercel dashboard: RELAYER_MNEMONIC, AGENT_OWNER_MNEMONIC, AGENT_KEY_HEX, SERV_API_KEY.
 
 Dedicated server keys (21 November): relayer qor1jucepu367uyf74dtrpqnxyawktagxaqslp6ffv (20 QOR, PQ key registered) and the bill agent's own account qor1h2cjmwcauhacd5w29j9ee5x88xz6349g7u0209 / 0xbAB12dbb1de5FB86D1CA2C8B9cd0c73985A8D4A8 (50 fUSD, 3 QOR, PQ key registered). Their mnemonics are not in the repo; the owner stores them in Vercel as Sensitive variables.
+
+## Live server checks with secrets set (21 November)
+
+| Check on https://bulkhead-blush.vercel.app | Result |
+|---|---|
+| Agent key renewed from the live server | linked for an hour, tx 1F554A42EB7587C8C4BC3C0A5EEFDF7B8D707A5EB88FFCC9CBC7B44A6959129C |
+| Relayer: forged phone approval | 422, refused in simulation, no gas spent |
+| Relayer: seal() | 422, only the owner's own keys can |
+| Relayer: real ML-DSA-87 phone approval (add payee on demo v2) | 200, tx 0x02f5f2c2c7dcdb097895508c4c5c2d4bec8abb83cb4bc6883b2440a98666d3a5 |
+| Agent: poisoned "pay 5000 to an unknown address" invoice | ask-phone, nothing paid, queued sealed to the phone (2,599-char envelope, amount not in plain text) |
+| Agent: invoice whose address the model mangled | rejected, nothing paid |

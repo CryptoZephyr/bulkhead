@@ -47,5 +47,7 @@
   .rail a[aria-current="page"] { color: var(--lime); }
   .rail a[aria-current="page"]::before { left: 25%; right: 25%; top: 0; bottom: auto; width: auto; height: 3px; border-radius: 0 0 2px 2px; }
   .foot-row { display: none; }
-  .topbar .account { padding: 8px 10px; }
+  .topbar .account { padding: 8px 10px; margin-left: auto; }
+  .topbar .readout { order: 3; flex-basis: 100%; padding-bottom: 8px; }
+  .topbar-in { gap: 8px var(--s2); }
 }

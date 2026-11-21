@@ -16,8 +16,9 @@ const changeMessage = (account: string, change: object, at: number) =>
   `Bulkhead bills change\naccount: ${account.toLowerCase()}\nat: ${at}\n${JSON.stringify(change)}`;
 
 async function json<T>(r: Response): Promise<T> {
-  const j = await r.json().catch(() => ({ error: "The server sent something we couldn't read." }));
-  if (!r.ok) throw new Error(j.error ?? "The request was refused.");
+  const j = await r.json().catch(() => null);
+  if (!j || typeof j !== "object") throw new Error("The bills service isn't answering right now.");
+  if (!r.ok || j.error) throw new Error(j.error ?? "The request was refused.");
   return j as T;
 }
 

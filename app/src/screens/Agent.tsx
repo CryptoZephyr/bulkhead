@@ -216,7 +216,7 @@ function PasteInvoice({ onBook }: { onBook: (b: BillBook) => void }) {
 function AgentKeyPlate() {
   const [st, setSt] = useState<{ linked: boolean; secondsLeft: number | null } | null>(null);
   const [err, setErr] = useState("");
-  const load = () => fetch("/api/agent-key").then(async (r) => { const j = await r.json(); if (!r.ok) throw new Error(j.error); setSt(j); setErr(""); })
+  const load = () => fetch("/api/agent-key").then(async (r) => { const j = await r.json().catch(() => null); if (!j) throw new Error("The agent service isn't answering right now."); if (!r.ok) throw new Error(j.error); setSt(j); setErr(""); })
     .catch((e) => setErr(e instanceof Error ? e.message : "We can't read the agent key right now."));
   useEffect(() => { void load(); const t = setInterval(() => void load(), 30_000); return () => clearInterval(t); }, []);
   const mins = st?.secondsLeft != null ? Math.round(st.secondsLeft / 60) : null;

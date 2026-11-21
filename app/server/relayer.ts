@@ -54,7 +54,7 @@ const broadcaster = {
 };
 
 /** A one-transaction window scoped to exactly the target. */
-async function openWindowFor(me: UnifiedAccount, target: Address) {
+export async function openWindowFor(me: UnifiedAccount, target: Address) {
   const r = await (await fetch(`${REST}/cosmos/auth/v1beta1/accounts/${me.cosmos}`)).json();
   const a = r.account.base_account ?? r.account;
   const signer = new EthNativeSigner(me, { signMode: "hybrid", rest: REST });
@@ -64,9 +64,15 @@ async function openWindowFor(me: UnifiedAccount, target: Address) {
   await new Promise((s) => setTimeout(s, 4000));
 }
 
-export async function relay(req: { to: Address; data: Hex }, env: { mnemonic: string; factory: Address }) {
-  const isAccount = async (a: Address) => (await pub.readContract({ address: env.factory, abi: factoryAbi, functionName: "isAccount", args: [a] })) as boolean;
-  const fn = await classify(req.to, req.data, env.factory, isAccount);
+/** FACTORY_ADDRESS may list several factories, newest first: "0xv3,0xv2". Accounts from any of them are served. */
+export async function relay(req: { to: Address; data: Hex }, env: { mnemonic: string; factory: string }) {
+  const factories = env.factory.split(",").map((f) => f.trim() as Address).filter(Boolean);
+  const isAccount = async (a: Address) => {
+    for (const f of factories) if ((await pub.readContract({ address: f, abi: factoryAbi, functionName: "isAccount", args: [a] })) as boolean) return true;
+    return false;
+  };
+  const target = factories.find((f) => f.toLowerCase() === req.to.toLowerCase()) ?? factories[0];
+  const fn = await classify(req.to, req.data, target, isAccount);
   const me = await relayerKey(env.mnemonic);
   // Simulate before spending anything: a forged signature fails here and costs nothing.
   let gas: bigint;

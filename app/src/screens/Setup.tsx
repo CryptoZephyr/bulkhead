@@ -6,6 +6,7 @@ import { formatUnits, parseUnits, toHex, type Address } from "viem";
 import { pub, readAccount, fmt, type AccountView } from "../chain/account";
 import { createEverydayKey, current, hasStoredKey, unlock } from "../chain/wallet";
 import { pairing, savePairing } from "../chain/device";
+import { HandshakePair } from "../ui/Handshake";
 import { initArgs, sendToPhone, type DeployInit } from "../chain/requests";
 import { fundFromQorex, isQorexAvailable } from "../chain/qorex";
 import { DEPLOYMENT, EXPLORER_TX, NATIVE, REST, TOKENS } from "../chain/config";
@@ -421,18 +422,22 @@ export function SetupScreen() {
             </StepCard>
 
             <StepCard id="setup-phone" title="Pair your phone" state={st(3)} summary={phone ? `Phone paired at ${short(phone)}` : "Phone paired"}>
-              <p>Open Bulkhead on your phone at <span className="mono">/#/phone</span>, create its Safety key, then type its address here.</p>
-              <form className="setup-form" onSubmit={savePhone} noValidate>
-                <label className="setup-field">
-                  <span>Your phone's address</span>
-                  <input className="setup-input mono" value={phoneText} onChange={(e) => setPhoneText(e.target.value)}
-                    placeholder="0x" autoComplete="off" spellCheck={false}
-                    aria-invalid={!!phoneErr} aria-describedby="setup-phone-hint" />
-                </label>
-                <p id="setup-phone-hint" className="setup-muted">It starts with 0x and has 40 more letters or numbers.</p>
-                {phoneErr && <p role="alert" className="setup-error">{phoneErr}</p>}
-                <button type="submit" className="btn btn-primary">Use this phone</button>
-              </form>
+              <HandshakePair onPaired={(p) => { setPhone(p); setPhoneText(p); setCur(4); }} />
+              <details className="setup-fallback">
+                <summary>Pair by typing the address instead</summary>
+                <p className="setup-muted">Only if scanning isn't possible. A typed or pasted address can be swapped by malware on this laptop, and nothing checks it belongs to your phone.</p>
+                <form className="setup-form" onSubmit={savePhone} noValidate>
+                  <label className="setup-field">
+                    <span>Your phone's address</span>
+                    <input className="setup-input mono" value={phoneText} onChange={(e) => setPhoneText(e.target.value)}
+                      placeholder="0x" autoComplete="off" spellCheck={false}
+                      aria-invalid={!!phoneErr} aria-describedby="setup-phone-hint" />
+                  </label>
+                  <p id="setup-phone-hint" className="setup-muted">It starts with 0x and has 40 more letters or numbers.</p>
+                  {phoneErr && <p role="alert" className="setup-error">{phoneErr}</p>}
+                  <button type="submit" className="btn btn-secondary">Use this address</button>
+                </form>
+              </details>
             </StepCard>
 
             <StepCard id="setup-walls" title="Set your walls" state={st(4)} summary="Walls set">

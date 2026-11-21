@@ -2,6 +2,7 @@
 // Flow: create or unlock the Safety key on this phone, show its address for pairing, make sure the
 // phone's account is funded and registered, then show the requests waiting for it. Every number and
 // sentence on a request comes from describe() on the chain, never from the request text itself.
+import { answerHandshake } from "../chain/handshake";
 import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import type { Address } from "viem";
 import { pub, readAccount, type AccountView } from "../chain/account";
@@ -529,6 +530,38 @@ function useReadiness(k: SafetyKey) {
 }
 
 /** The unlocked phone: its address, its readiness, then the queue. */
+const pairParam = () => new URLSearchParams(location.hash.split("?")[1] ?? "").get("pair");
+
+/** Phone side of the Bulkhead Handshake: sign this phone's card and seal it to the laptop's throwaway key. */
+function PairAnswer({ safety, ready }: { safety: SafetyKey; ready: boolean }) {
+  const [words, setWords] = useState<string[] | null>(null);
+  const [err, setErr] = useState(""), [busy, setBusy] = useState(false);
+  async function go() {
+    setErr(""); setBusy(true);
+    try { setWords(await answerHandshake(pairParam()!, safety.account, safety.mnemonic)); }
+    catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+  }
+  return (
+    <section className="plate handshake" aria-labelledby="pair-h">
+      <h2 id="pair-h" style={{ color: "var(--on-plate)" }}>Pair with your laptop</h2>
+      {words ? (
+        <>
+          <p>Check that your laptop shows these four words, in this order. Only confirm there if they match.</p>
+          <ol className="hs-words">{words.map((w) => <li key={w}>{w}</li>)}</ol>
+        </>
+      ) : !ready ? (
+        <p>Finish getting this phone ready below first. Then come back to this page.</p>
+      ) : (
+        <>
+          <p>Your phone will sign a card with its post-quantum key and send it, encrypted, to the laptop that showed the code.</p>
+          {err && <p role="alert" className="flood-line">{err}</p>}
+          <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void go()}>{busy ? "Signing…" : "Pair with this laptop"}</button>
+        </>
+      )}
+    </section>
+  );
+}
+
 function Unlocked({ safety }: { safety: SafetyKey }) {
   const { r: ready, err: readyErr, refresh } = useReadiness(safety);
   const isReady = !!ready && ready.funded && ready.pqProven && ready.kemRegistered;
@@ -551,8 +584,10 @@ function Unlocked({ safety }: { safety: SafetyKey }) {
       <section className="plate addr-plate" aria-labelledby="addr-h">
         <span className="label" id="addr-h">This phone's address</span>
         <CopyAddress value={safety.account.evm} label="This phone's address" />
-        <p>Enter this address on your laptop to pair.</p>
+        <p>To pair, choose "Show the pairing code" on your laptop and scan it with this phone's camera.</p>
       </section>
+
+      {pairParam() && <PairAnswer safety={safety} ready={isReady} />}
 
       {!isReady && (
         <section className="plate ready-plate" aria-labelledby="ready-h" aria-busy={!ready && !readyErr}>

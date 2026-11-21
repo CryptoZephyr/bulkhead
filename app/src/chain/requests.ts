@@ -17,6 +17,7 @@ export type Intent =
   | { kind: "AddPayee"; payee: Address }
   | { kind: "Unseal" }
   | { kind: "SetRecovery"; recovery: Address }
+  | { kind: "AddPilot"; pilot: Address }                                // widening: the pilot may raise live walls up to the policy
   | { kind: "Spend"; asset: Address; to: Address; amount: string }   // over the walls, immediate
   | { kind: "BreakGlass"; assets: Address[] }                         // immediate
   | { kind: "Seal" }                                                  // immediate: the phone seals on its own
@@ -35,7 +36,7 @@ export function initArgs(i: DeployInit) {
 
 export interface RequestBody { v: 1; account: Address; from: "laptop" | "agent"; intent: Intent; createdAt: number }
 
-const LOOSEN = { SetPolicy: 0, AddPayee: 1, DisablePayeeList: 2, Unseal: 3, AddSentinel: 4, SetRecovery: 5 } as const;
+export const LOOSEN = { SetPolicy: 0, AddPayee: 1, DisablePayeeList: 2, Unseal: 3, AddSentinel: 4, SetRecovery: 5, SetPilot: 6 } as const;
 const policyTuple = [{ type: "address" }, { type: "tuple", components: [{ name: "perTxCap", type: "uint256" }, { name: "periodCap", type: "uint256" }, { name: "floor", type: "uint256" }] }] as const;
 
 /** The digest kind and data bytes the account checks the signature against. Mirrors BulkheadAccount. */
@@ -45,6 +46,7 @@ export function encodeIntent(i: Intent): { kindId: number; data: Hex } {
     case "AddPayee": return { kindId: 16 + LOOSEN.AddPayee, data: encodeAbiParameters([{ type: "address" }], [i.payee]) };
     case "Unseal": return { kindId: 16 + LOOSEN.Unseal, data: "0x" };
     case "SetRecovery": return { kindId: 16 + LOOSEN.SetRecovery, data: encodeAbiParameters([{ type: "address" }], [i.recovery]) };
+    case "AddPilot": return { kindId: 16 + LOOSEN.SetPilot, data: encodeAbiParameters([{ type: "address" }], [i.pilot]) };
     case "Spend": return { kindId: 0, data: encodeAbiParameters([{ type: "address" }, { type: "address" }, { type: "uint256" }], [i.asset, i.to, BigInt(i.amount)]) };
     case "BreakGlass": return { kindId: 1, data: encodeAbiParameters([{ type: "address[]" }], [i.assets]) };
     case "Seal": return { kindId: 2, data: "0x" };
@@ -78,6 +80,8 @@ export async function describe(account: Address, i: Intent): Promise<{ title: st
     case "AddPayee": return { title: "Add an approved payee", after: i.payee, delayed: true, check: `The call adds ${i.payee} as a payee on ${short}. Nothing else.` };
     case "Unseal": return { title: "Unseal the account", now: "Sealed", after: "Open", delayed: true, check: `The call unseals ${short}. Nothing else.` };
     case "SetRecovery": return { title: "Change the recovery account", after: i.recovery, delayed: true, check: `The call sets the recovery account of ${short}. Nothing else.` };
+    case "AddPilot": return { title: "Add the pilot", now: "Your walls stay where you set them all day", after: `The pilot ${i.pilot} keeps them low outside your hours. It can never go above the walls you signed, and only your laptop or phone can remove it.`, delayed: true,
+      check: `The call lets ${i.pilot} move the live walls of ${short} between zero and your signed walls. It can't spend, seal, unseal or change anything else.` };
     case "Spend": { const t = tokenOf(i.asset); return { title: `Send ${fmt(BigInt(i.amount), t.decimals, t.places)} ${t.symbol}`, after: `to ${i.to}`, delayed: false, check: `The call moves ${fmt(BigInt(i.amount), t.decimals, t.places)} ${t.symbol} from ${short} to ${i.to}. Nothing else.` }; }
     case "BreakGlass": return { title: "Send everything to the recovery account", delayed: false, check: `The call moves every listed asset from ${short} to its pinned recovery account. Nothing else.` };
     case "Seal": return { title: "Seal the account", now: "Open", after: "Sealed", delayed: false, check: `The call seals ${short}. Nothing else.` };

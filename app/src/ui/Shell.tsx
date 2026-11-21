@@ -9,6 +9,7 @@ export const NAV = [
   { id: "hull", label: "Hull" },
   { id: "pay", label: "Pay" },
   { id: "receive", label: "Receive" },
+  { id: "pilot", label: "Pilot" },
   { id: "agent", label: "Bills" },
   { id: "activity", label: "Activity" },
 ] as const;

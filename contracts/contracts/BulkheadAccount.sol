@@ -29,7 +29,17 @@ contract BulkheadAccount {
         uint256 floor;      // Savings: balance everyday spends may never go below
     }
 
-    enum Loosen { SetPolicy, AddPayee, DisablePayeeList, Unseal, AddSentinel, SetRecovery }
+    enum Loosen { SetPolicy, AddPayee, DisablePayeeList, Unseal, AddSentinel, SetRecovery, SetPilot }
+
+    /// The pilot's live walls: always inside the phone-signed policy. Until `until` the raised
+    /// values apply, then the resting values. A raise therefore closes itself even if the pilot dies.
+    struct Live {
+        uint256 perTx;
+        uint256 period;
+        uint256 until;
+        uint256 restPerTx;
+        uint256 restPeriod;
+    }
 
     enum Trip { None, OverTxCap, OverPeriodCap, BelowFloor, UnknownPayee }
 
@@ -69,6 +79,10 @@ contract BulkheadAccount {
     mapping(address => uint256) public sentinelPeriod;
     mapping(address => uint256) public sentinelUses;
 
+    address public pilot;                                // moves the live walls inside the policy; added only by the phone
+    mapping(address => Live) public live;                // per asset
+    mapping(address => bool) public liveOn;              // per asset: false means the policy applies as is
+
     mapping(uint256 => bool) public nonceUsed;           // Safety-key signatures, single use
 
     address public pendingSafety;                        // lost-phone replacement in progress
@@ -93,6 +107,8 @@ contract BulkheadAccount {
     event SafetyChangeProposed(address indexed next, uint256 readyAt);
     event SafetyChangeCancelled(address indexed next);
     event SafetyChanged(address indexed previous, address indexed next);
+    event LiveSet(address indexed by, address indexed asset, uint256 perTx, uint256 period, uint256 until, uint256 restPerTx, uint256 restPeriod);
+    event HeldByPilot(address indexed asset, address indexed to, uint256 amount);
 
     // ------------------------------------------------------------------ errors
 
@@ -115,6 +131,9 @@ contract BulkheadAccount {
     error Reentrant();
     error NoSafetyChange();
     error BadSafety();
+    error NotPilot();
+    error AbovePolicy();
+    error TooFarAhead();
 
     // ------------------------------------------------------------------ modifiers
 
@@ -172,14 +191,25 @@ contract BulkheadAccount {
         return periodBlocks / 2;
     }
 
+    /// The walls in force right now: the pilot's live values, never above the phone-signed policy.
+    function effectiveCaps(address asset) public view returns (uint256 perTx, uint256 period) {
+        Policy memory p = policy[asset];
+        if (!liveOn[asset]) return (p.perTxCap, p.periodCap);
+        Live memory l = live[asset];
+        (perTx, period) = block.number < l.until ? (l.perTx, l.period) : (l.restPerTx, l.restPeriod);
+        if (perTx > p.perTxCap) perTx = p.perTxCap;
+        if (period > p.periodCap) period = p.periodCap;
+    }
+
     function blastRadius(address asset) external view returns (uint256) {
         if (sealed_ || block.number < throttledUntil) return 0;
         Policy memory p = policy[asset];
+        (uint256 tx_, uint256 cap) = effectiveCaps(asset);
         uint256 used = _used(asset, p.periodCap);
-        uint256 periodLeft = p.periodCap > used ? p.periodCap - used : 0;
+        uint256 periodLeft = cap > used ? cap - used : 0;
         uint256 bal = balanceOf(asset);
         uint256 aboveFloor = bal > p.floor ? bal - p.floor : 0;
-        uint256 r = p.perTxCap < periodLeft ? p.perTxCap : periodLeft;
+        uint256 r = tx_ < periodLeft ? tx_ : periodLeft;
         return r < aboveFloor ? r : aboveFloor;
     }
 
@@ -200,6 +230,14 @@ contract BulkheadAccount {
         else if (used + amount > p.periodCap) t = Trip.OverPeriodCap;
         else if (balanceOf(asset) < p.floor + amount) t = Trip.BelowFloor;
         else if (payeeListOn && !payee[to]) t = Trip.UnknownPayee;
+        if (t == Trip.None) {
+            // Inside the policy but over the pilot's live walls: refused, not sealed.
+            (uint256 tx_, uint256 cap) = effectiveCaps(asset);
+            if (amount > tx_ || used + amount > cap) {
+                emit HeldByPilot(asset, to, amount);
+                return false;
+            }
+        }
         if (t != Trip.None) {
             sealed_ = true;
             lastTrip = t;
@@ -341,6 +379,33 @@ contract BulkheadAccount {
         _bumpEpoch();
     }
 
+    /// @notice Move the live walls for `asset`. The pilot can raise or lower, the laptop can only lower. Nothing can exceed the
+    ///         phone-signed policy, a raise lasts at most one period, and it doesn't bump the epoch,
+    ///         so the pilot can't cancel the phone's queued widenings. A hijacked pilot's worst case
+    ///         is the policy itself.
+    function setLive(address asset, Live calldata l) external {
+        if (msg.sender != pilot && msg.sender != everyday) revert NotPilot();
+        Policy memory p = policy[asset];
+        if (msg.sender == everyday && msg.sender != pilot) {
+            // The laptop may only lower the live walls. Raising needs the pilot, so a stolen laptop
+            // key alone can't reopen a wall the pilot closed for the night.
+            (uint256 tx_, uint256 cap) = effectiveCaps(asset);
+            if (l.perTx > tx_ || l.period > cap || l.restPerTx > tx_ || l.restPeriod > cap) revert NotTighter();
+        }
+        if (l.perTx > p.perTxCap || l.period > p.periodCap || l.restPerTx > p.perTxCap || l.restPeriod > p.periodCap) revert AbovePolicy();
+        if (l.until > block.number + periodBlocks) revert TooFarAhead();
+        live[asset] = l;
+        liveOn[asset] = true;
+        emit LiveSet(msg.sender, asset, l.perTx, l.period, l.until, l.restPerTx, l.restPeriod);
+    }
+
+    /// @notice Removing the pilot is a tighten: the laptop can do it at once. The live walls stay at rest.
+    function removePilot() external onlyEveryday {
+        pilot = address(0);
+        _bumpEpoch();
+        emit Tightened("pilot");
+    }
+
     /// @notice A sentinel can only pause everyday spending for at most half a period, once per
     ///         period, so spending stays available at least half the time. It cannot seal, move
     ///         funds, widen anything, or cancel the Safety key's queued widenings.
@@ -396,6 +461,8 @@ contract BulkheadAccount {
             address r_ = abi.decode(data, (address));
             if (!IBulkheadFactory(factory).isAccount(r_) || r_ == address(this)) revert RecoveryNotAccount();
             recovery = r_;
+        } else if (action == Loosen.SetPilot) {
+            pilot = abi.decode(data, (address));
         }
         emit LoosenExecuted(id, action);
     }

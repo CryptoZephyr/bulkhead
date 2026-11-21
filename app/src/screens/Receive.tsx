@@ -12,7 +12,7 @@ import "./receive.css";
 const T = TOKENS.fUSD;
 
 /** A QR code drawn as one SVG path from our own tokens (no image library). */
-function Qr({ text }: { text: string }) {
+export function Qr({ text }: { text: string }) {
   const q = qrcode(0, "M");
   q.addData(text); q.make();
   const n = q.getModuleCount();

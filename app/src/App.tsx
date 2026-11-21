@@ -9,6 +9,7 @@ import { PayScreen } from "./screens/Pay";
 import { ReceiveScreen } from "./screens/Receive";
 import { WallsScreen } from "./screens/Walls";
 import { AgentScreen } from "./screens/Agent";
+import { PilotScreen } from "./screens/Pilot";
 import { ActivityScreen } from "./screens/Activity";
 import { ProofScreen } from "./screens/Proof";
 import { HelpScreen } from "./screens/Help";
@@ -24,6 +25,7 @@ const SCREENS: Record<string, ScreenDef> = {
   pay: { title: "Pay", sentence: "Send money inside your walls. Anything bigger goes to your phone.", body: () => <PayScreen />, needsAccount: true },
   receive: { title: "Receive", sentence: "Your account's address, and funding from QoreX.", body: () => <ReceiveScreen />, needsAccount: true },
   walls: { title: "Walls", sentence: "Tighten instantly. Widening goes to your phone.", body: () => <WallsScreen />, needsAccount: true },
+  pilot: { title: "Pilot", sentence: "Your agent keeps the most anyone could take as small as your day needs.", body: () => <PilotScreen />, needsAccount: true },
   agent: { title: "Bills", sentence: "Your bill agent pays your regular bills from its own capped account.", body: () => <AgentScreen />, needsAccount: true },
   activity: { title: "Activity", sentence: "Everything that happened, read from the chain.", body: () => <ActivityScreen />, needsAccount: true },
   setup: { title: "Set up Bulkhead", sentence: "Let's build your hull. It takes about two minutes.", body: () => <SetupScreen /> },

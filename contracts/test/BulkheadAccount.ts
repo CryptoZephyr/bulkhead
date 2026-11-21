@@ -83,6 +83,17 @@ describe("Everyday compartment", async () => {
     assert.equal(await account.read.sealed_(), false);
   });
 
+  it("a burst across a period boundary cannot reach twice the period cap", async () => {
+    const env = await setup();
+    const { account } = await deployAccount(env, { policy: { perTxCap: parseEther("3"), periodCap: parseEther("3"), floor: 0n } });
+    await fund(env, account.address, "20");
+    await env.networkHelpers.mine(98);
+    await account.write.spend([NATIVE, env.payee.account.address, parseEther("3")]);
+    await account.write.spend([NATIVE, env.payee.account.address, parseEther("3")]);
+    assert.equal(await account.read.lastTrip(), 2);
+    assert.equal(await env.pub.getBalance({ address: account.address }), parseEther("17"));
+  });
+
   it("never goes below the Savings floor", async () => {
     const env = await setup();
     const { account } = await deployAccount(env);
@@ -234,15 +245,27 @@ describe("Sentinels (I4)", async () => {
 
   it("can pause everyday spending for a bounded time only", async () => {
     const { env, account } = await withSentinel();
-    await assert.rejects(account.write.throttle([601n], { account: env.sentinel.account }), /ThrottleTooLong/);
+    await assert.rejects(account.write.throttle([51n], { account: env.sentinel.account }), /ThrottleTooLong/);
     await account.write.throttle([10n], { account: env.sentinel.account });
     assert.equal(await account.read.blastRadius([NATIVE]), 0n);
   });
 
   it("has a bounded number of throttles per period", async () => {
     const { env, account } = await withSentinel();
-    for (let k = 0; k < 3; k++) await account.write.throttle([1n], { account: env.sentinel.account });
+    await account.write.throttle([1n], { account: env.sentinel.account });
     await assert.rejects(account.write.throttle([1n], { account: env.sentinel.account }), /ThrottleBudgetUsed/);
+  });
+
+  it("cannot cancel the Safety key's queued widenings", async () => {
+    const { env, account } = await withSentinel();
+    await account.write.seal();
+    const dl = deadline();
+    const sig = await approve(env, await account.read.digest([16 + 3, "0x", 21n, dl]));
+    await account.write.queueLoosen([3, "0x", 21n, dl, sig]);
+    await account.write.throttle([10n], { account: env.sentinel.account });
+    await env.networkHelpers.mine(50);
+    await account.write.executeLoosen([3, "0x", 21n]);
+    assert.equal(await account.read.sealed_(), false);
   });
 
   it("cannot spend, seal or widen", async () => {

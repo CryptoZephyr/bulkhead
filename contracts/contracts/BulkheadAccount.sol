@@ -37,8 +37,8 @@ contract BulkheadAccount {
 
     bytes32 public constant TAG = keccak256("BULKHEAD_V1");
     address public constant NATIVE = address(0);
-    uint256 public constant MAX_THROTTLE_BLOCKS = 600;  // T: one sentinel throttle, at most
-    uint256 public constant MAX_THROTTLES_PER_PERIOD = 3; // K: per sentinel per period
+    uint256 public constant MAX_THROTTLES_PER_PERIOD = 1; // K: per sentinel per period
+    // T: one sentinel throttle lasts at most half a period (see maxThrottleBlocks)
 
     // ------------------------------------------------------------------ immutable config
 
@@ -56,8 +56,10 @@ contract BulkheadAccount {
     Trip public lastTrip;
 
     mapping(address => Policy) public policy;            // per asset
-    mapping(address => uint256) public periodStart;      // per asset
-    mapping(address => uint256) public spentInPeriod;    // per asset
+    // Period cap as a refilling allowance: at most periodCap is available, and it refills linearly
+    // over periodBlocks. Unlike fixed windows, a burst across a period boundary cannot reach 2x.
+    mapping(address => uint256) public allowanceUsed;    // per asset, debt against periodCap
+    mapping(address => uint256) public lastSpendBlock;   // per asset
 
     bool public payeeListOn;
     mapping(address => bool) public payee;
@@ -155,11 +157,15 @@ contract BulkheadAccount {
     }
 
     /// Everyday blast radius left for `asset` right now: what the everyday key could still move.
+    function maxThrottleBlocks() public view returns (uint256) {
+        return periodBlocks / 2;
+    }
+
     function blastRadius(address asset) external view returns (uint256) {
         if (sealed_ || block.number < throttledUntil) return 0;
         Policy memory p = policy[asset];
-        uint256 spent = _periodSpent(asset);
-        uint256 periodLeft = p.periodCap > spent ? p.periodCap - spent : 0;
+        uint256 used = _used(asset, p.periodCap);
+        uint256 periodLeft = p.periodCap > used ? p.periodCap - used : 0;
         uint256 bal = balanceOf(asset);
         uint256 aboveFloor = bal > p.floor ? bal - p.floor : 0;
         uint256 r = p.perTxCap < periodLeft ? p.perTxCap : periodLeft;
@@ -176,12 +182,11 @@ contract BulkheadAccount {
     ///         so the seal is recorded even though the attacker's transaction "succeeds".
     function spend(address asset, address to, uint256 amount) external onlyEveryday nonReentrant returns (bool) {
         if (sealed_ || block.number < throttledUntil) return false;
-        _touchPeriod(asset);
         Policy memory p = policy[asset];
-        uint256 spent = spentInPeriod[asset];
+        uint256 used = _used(asset, p.periodCap);
         Trip t = Trip.None;
         if (amount > p.perTxCap) t = Trip.OverTxCap;
-        else if (spent + amount > p.periodCap) t = Trip.OverPeriodCap;
+        else if (used + amount > p.periodCap) t = Trip.OverPeriodCap;
         else if (balanceOf(asset) < p.floor + amount) t = Trip.BelowFloor;
         else if (payeeListOn && !payee[to]) t = Trip.UnknownPayee;
         if (t != Trip.None) {
@@ -192,7 +197,8 @@ contract BulkheadAccount {
             emit Sealed(address(this));
             return false;
         }
-        spentInPeriod[asset] = spent + amount;
+        allowanceUsed[asset] = used + amount;
+        lastSpendBlock[asset] = block.number;
         _transfer(asset, to, amount);
         emit Spent(asset, to, amount, false);
         return true;
@@ -267,18 +273,18 @@ contract BulkheadAccount {
         _bumpEpoch();
     }
 
-    /// @notice A sentinel can only pause everyday spending for a bounded time, a bounded number of
-    ///         times per period. It cannot seal, move funds or widen anything.
+    /// @notice A sentinel can only pause everyday spending for at most half a period, once per
+    ///         period, so spending stays available at least half the time. It cannot seal, move
+    ///         funds, widen anything, or cancel the Safety key's queued widenings.
     function throttle(uint256 blocks_) external {
         if (!sentinel[msg.sender]) revert NotSentinel();
-        if (blocks_ > MAX_THROTTLE_BLOCKS) revert ThrottleTooLong();
+        if (blocks_ > maxThrottleBlocks()) revert ThrottleTooLong();
         uint256 p = block.number / periodBlocks;
         if (sentinelPeriod[msg.sender] != p) { sentinelPeriod[msg.sender] = p; sentinelUses[msg.sender] = 0; }
         if (sentinelUses[msg.sender] >= MAX_THROTTLES_PER_PERIOD) revert ThrottleBudgetUsed();
         sentinelUses[msg.sender]++;
         uint256 until_ = block.number + blocks_;
         if (until_ > throttledUntil) throttledUntil = until_;
-        _bumpEpoch();
         emit Throttled(msg.sender, until_);
     }
 
@@ -328,8 +334,12 @@ contract BulkheadAccount {
 
     // ------------------------------------------------------------------ internals
 
-    function _periodSpent(address asset) internal view returns (uint256) {
-        return block.number >= periodStart[asset] + periodBlocks ? 0 : spentInPeriod[asset];
+    /// Allowance used, after linear refill since the last spend.
+    function _used(address asset, uint256 periodCap) internal view returns (uint256) {
+        uint256 u = allowanceUsed[asset];
+        if (u == 0) return 0;
+        uint256 refill = (periodCap * (block.number - lastSpendBlock[asset])) / periodBlocks;
+        return refill >= u ? 0 : u - refill;
     }
 
     function _bumpEpoch() internal {
@@ -372,14 +382,6 @@ contract BulkheadAccount {
         }
         (bool ok2, bytes memory ret) = asset.call(abi.encodeWithSelector(0xa9059cbb, to, amount));
         if (!ok2 || (ret.length != 0 && !abi.decode(ret, (bool)))) revert TransferFailed();
-    }
-
-    /// Keeps the period window aligned when the first spend of a new period lands.
-    function _touchPeriod(address asset) internal {
-        if (block.number >= periodStart[asset] + periodBlocks) {
-            periodStart[asset] = block.number;
-            spentInPeriod[asset] = 0;
-        }
     }
 }
 

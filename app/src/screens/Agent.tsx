@@ -12,7 +12,6 @@ import "./agent.css";
 const T = TOKENS.fUSD;
 const UNIT = 10n ** BigInt(T.decimals);
 // The agent's own account, from the testnet run and the agent compartment in docs/DEPLOYMENTS.md.
-// TODO: the lead replaces this from the deployment record when it is final.
 const AGENT_ACCOUNT = "0x361335D30D6cE1645e802B8df27606A9f1713073" as Address;
 const DEMO_ACCOUNT = DEPLOYMENT.demoAccount as Address;
 
@@ -86,8 +85,7 @@ export function AgentScreen() {
         <ActionButton
           block
           run={async (step) => {
-            // TODO: the lead defines the top-up request kind. SetPolicy is a placeholder.
-            await actions.requestWiden(DEMO_ACCOUNT, "SetPolicy", { topUp: AGENT_ACCOUNT }, step);
+            await actions.requestWiden(DEMO_ACCOUNT, { kind: "Spend", asset: TOKENS.fUSD.address, to: AGENT_ACCOUNT, amount: "10000000" }, step);
             return "Sent to your phone";
           }}
         >

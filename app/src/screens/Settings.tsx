@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import type { Address } from "viem";
 import { pub } from "../chain/account";
 import accountAbi from "../chain/abi/BulkheadAccount.json";
-import { actions } from "../chain/actions";
 import { DEPLOYMENT } from "../chain/config";
 import { ActionButton } from "../ui/Button";
 import "./settings.css";
@@ -94,8 +93,7 @@ export function SettingsScreen() {
         <p className="muted">If you ever think you're hacked, everything goes here with one tap.</p>
         <p className={recovery.status === "set" ? "addr mono" : "addr"}>{recoveryLabel(recovery)}</p>
         <ActionButton
-          run={(step) => actions.requestWiden(ACCOUNT, "SetRecovery", { recovery: recovery.status === "set" ? recovery.address : null }, step)
-            .then(() => "Sent to your phone")}
+          run={async () => { throw new Error("Create your recovery account first. It is a second Bulkhead account, so a stolen laptop key can only send money to safety."); }}
         >
           Set my recovery account
         </ActionButton>

@@ -8,6 +8,9 @@ import accountAbi from "./abi/BulkheadAccount.json";
 import { pub, readAccount } from "./account";
 import { qorechainTestnet } from "./config";
 import { current, openScopedWindow, windowLeft } from "./wallet";
+import { pairing } from "./device";
+import { sendToPhone, type Intent } from "./requests";
+import { REST } from "./config";
 
 export const NOT_WIRED = "This action is not connected to the chain yet.";
 
@@ -24,7 +27,7 @@ export interface Actions {
   tighten(account: Address, asset: Address, policy: PolicyInput, step: Step): Promise<{ txHash: string }>;
   seal(account: Address, step: Step): Promise<{ txHash: string }>;
   /** Sends a widening request to the paired phone. Returns a request id the phone view looks up. */
-  requestWiden(account: Address, kind: "SetPolicy" | "AddPayee" | "Unseal" | "SetRecovery", data: unknown, step: Step): Promise<{ requestId: string }>;
+  requestWiden(account: Address, intent: Intent, step: Step): Promise<{ requestId: string }>;
   breakGlass(account: Address, assets: Address[], step: Step): Promise<{ txHash: string }>;
 }
 
@@ -78,8 +81,13 @@ export const actions: Actions = {
   seal: (account, step) => write(account, "seal", [], step, "Sealing on QoreChain"),
   breakGlass: (account, assets, step) => write(account, "breakGlass", [assets], step, "Sending everything to your recovery account"),
 
-  async requestWiden() {
-    // Delivered to the phone through the approval queue (server/queue.ts), encrypted to the phone's ML-KEM key.
-    throw new Error(NOT_WIRED);
+  async requestWiden(account, intent, step) {
+    // Sealed to the phone's ML-KEM key, so the server only ever holds ciphertext.
+    const p = pairing();
+    if (!p || p.account.toLowerCase() !== account.toLowerCase()) throw new Error("Pair your phone first. Widening a wall needs it.");
+    step("Encrypting the request for your phone", 0.4);
+    const requestId = await sendToPhone(REST, p.phoneQor, { v: 1, account, from: "laptop", intent, createdAt: Date.now() });
+    step("Waiting for your phone", 1);
+    return { requestId };
   },
 };

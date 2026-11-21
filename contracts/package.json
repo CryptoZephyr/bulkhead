@@ -6,10 +6,11 @@
   "description": "A Hardhat 3 project for the QoreChain EVM, with a helper that opens the EVM authorisation window.",
   "scripts": {
     "build": "hardhat build",
-    "test": "hardhat test",
+    "test": "npm run check:no-ecrecover && hardhat test",
     "window": "tsx --env-file=.env scripts/window.ts",
     "deploy:testnet": "hardhat ignition deploy ignition/modules/Counter.ts --network qorechainTestnet",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:no-ecrecover": "! grep -rn \"ecrecover\\|ECDSA\" contracts --include=*.sol | grep -v \"^contracts/mocks/\" | grep -v \"//\""
   },
   "dependencies": {
     "@cosmjs/stargate": "^0.39.0",

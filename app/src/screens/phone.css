@@ -46,6 +46,7 @@ button.plate.entry {
 .pair .pl { flex: 1 1 0; min-width: 0; display: grid; gap: 4px; padding: 16px 14px; align-content: start; }
 .pl-num { font-size: 28px; font-weight: 850; font-stretch: var(--wide); line-height: 1.05; }
 .pl-unit { font-size: 14px; color: var(--on-plate-2); }
+.pl-text { font-size: 16px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
 .facts { display: grid; gap: 8px; margin: 0; }
 .facts > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .facts dt { color: var(--text-2); font-size: 14px; }
@@ -80,6 +81,43 @@ button.plate.entry {
 .sent { display: grid; gap: 8px; justify-items: start; }
 .hash-link { display: inline-flex; align-items: center; gap: 8px; color: var(--text); font-size: 13px; font-weight: 600; min-height: 40px; }
 .hash-link .hash { overflow-wrap: anywhere; }
+
+/* Refused and approved outcomes */
+.takes { font-size: 14px; margin: 0; }
+.refused { font-size: 17px; font-weight: 700; margin: 0; color: var(--text); }
+.dismiss { width: 100%; }
+.step { display: grid; gap: 8px; font-size: 14px; font-weight: 600; }
+.step-track { display: block; height: 6px; border-radius: 2px; background: color-mix(in srgb, var(--text) 14%, transparent); overflow: hidden; }
+.step-track b { display: block; height: 100%; background: var(--lime); transition: width 300ms ease-out; }
+
+/* Address and readiness */
+.addr-plate { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.addr-plate p { margin: 0; font-size: 14px; color: var(--on-plate-2); }
+.copy-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; justify-items: start; min-width: 0; }
+.addr-text { display: block; max-width: 100%; font-size: 17px; line-height: 1.6; overflow-wrap: anywhere; color: var(--on-plate); }
+.grp { white-space: nowrap; }
+.copy-btn { min-height: 44px; padding: 0 16px; font-size: 15px; }
+.copy-note { margin: 0; font-size: 13px; }
+.copy-note:empty { display: none; }
+.ready-plate { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.ready-plate h2 { font-size: 20px; font-weight: 800; margin: 0; }
+.ready-plate .muted { margin: 0; font-size: 14px; }
+.ready-plate .copy-row .muted { font-size: 13px; }
+.setup-plate { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.setup-plate h2 { font-size: 22px; font-weight: 800; margin: 0; }
+.setup-plate > p.muted { margin: 0; font-size: 14px; }
+.setup-plate .hint { font-size: 13px; }
+.setup-plate .block { width: 100%; }
+.field { display: grid; gap: 6px; }
+.field span { font-size: 14px; color: var(--on-plate-2); font-weight: 600; }
+.field input {
+  min-height: 52px; padding: 0 12px; border: 0; border-radius: var(--r-input); background: var(--sheet); color: var(--text);
+  font: inherit; font-size: 17px; width: 100%; box-sizing: border-box;
+}
+.field input:focus-visible { outline: 3px solid var(--lime); outline-offset: 2px; }
+.unlock { display: grid; gap: 12px; margin: 0; }
+.unlock .block { width: 100%; }
+.unlock .btn:disabled { opacity: .5; cursor: not-allowed; }
 
 /* Refuse */
 .refuse { display: grid; gap: 8px; justify-items: start; }

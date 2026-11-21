@@ -142,5 +142,14 @@ Run against https://bulkhead-blush.vercel.app through its own APIs only (relay, 
 | Ask for 4.00 during quiet hours | refused, sent to the phone | |
 | Stolen laptop tries to reopen the wall | refused | |
 | Stolen laptop tries 5.00 | held, 10.00 fUSD left, not sealed | 0xbe76fc8c5abb970e97993a7327d821dc97808c3b042ab410e98989a8e7c4b65a |
-| Move quiet hours away (daytime) | FAILED: the pilot read the previous quiet hours from storage. Fixed in PR #4 | |
+| Move quiet hours away (daytime) | FAILED: the pilot read the previous quiet hours from storage. Fixed in PRs #4 and #5 | |
 | Pairing relay: start, phone's sealed card, second reply | 201, 200, refused 400; only the laptop could open the card | |
+
+### Retest after PRs #4 and #5 (21 November, round 26b)
+
+| Step | Result | Transaction |
+|---|---|---|
+| Daytime hours saved, live pilot opens the wall | blast radius 0.30 to 2.00 | 0x5e45a9908dae5591e104680eb21fba20109219ecd5a24835eff5c1dd5fa5b9bf |
+| "about 4 until 14:00, shopping": the model read 4 and 14:00, code opened within the ceiling | blast radius 4.00 | 0x72cf2e470b258733f133812fd60fadb1163fb816014e6fa80decad2e5ad404d2 |
+| Back to quiet hours | blast radius 0.30 | 0x9a7a337c8e6de514f66eb5ed7161fb35f8bb1a190338e2125f675d50a65896f8 |
+| Browser walk of the live site (landing, setup, pilot, hull, phone) at 1280 and 390 px | all load, no page errors, no sideways scroll | |

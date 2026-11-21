@@ -379,13 +379,19 @@ contract BulkheadAccount {
         _bumpEpoch();
     }
 
-    /// @notice Move the live walls for `asset`, by the pilot or the laptop. Nothing can exceed the
+    /// @notice Move the live walls for `asset`. The pilot can raise or lower, the laptop can only lower. Nothing can exceed the
     ///         phone-signed policy, a raise lasts at most one period, and it doesn't bump the epoch,
     ///         so the pilot can't cancel the phone's queued widenings. A hijacked pilot's worst case
     ///         is the policy itself.
     function setLive(address asset, Live calldata l) external {
         if (msg.sender != pilot && msg.sender != everyday) revert NotPilot();
         Policy memory p = policy[asset];
+        if (msg.sender == everyday && msg.sender != pilot) {
+            // The laptop may only lower the live walls. Raising needs the pilot, so a stolen laptop
+            // key alone can't reopen a wall the pilot closed for the night.
+            (uint256 tx_, uint256 cap) = effectiveCaps(asset);
+            if (l.perTx > tx_ || l.period > cap || l.restPerTx > tx_ || l.restPeriod > cap) revert NotTighter();
+        }
         if (l.perTx > p.perTxCap || l.period > p.periodCap || l.restPerTx > p.perTxCap || l.restPeriod > p.periodCap) revert AbovePolicy();
         if (l.until > block.number + periodBlocks) revert TooFarAhead();
         live[asset] = l;

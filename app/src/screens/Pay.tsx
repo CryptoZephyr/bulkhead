@@ -1,16 +1,18 @@
 // Pay (section 16.4): send money without breaking a wall by accident.
 // The live check is deterministic code from the account's real policy and blast radius.
+import { myAccount } from "../chain/me";
 import { useEffect, useState } from "react";
 import type { Address } from "viem";
 import { readAccount, fmt, type AccountView } from "../chain/account";
-import { DEPLOYMENT, EXPLORER_TX, TOKENS } from "../chain/config";
+import { EXPLORER_TX, TOKENS } from "../chain/config";
 import { actions } from "../chain/actions";
 import { ActionButton } from "../ui/Button";
 import { StatusMark } from "../ui/Status";
 import "./pay.css";
 
 const T = TOKENS.fUSD;
-const ACCOUNT = DEPLOYMENT.demoAccount as Address;
+// The user's own account. App screens render only once setup has created one.
+const myAddr = (): Address => myAccount()!.address;
 const ASSET = T.address as Address;
 const UNIT = 10n ** BigInt(T.decimals);
 const CENT = UNIT / 100n;
@@ -72,7 +74,7 @@ export function PayScreen() {
 
   useEffect(() => {
     let on = true;
-    const load = () => readAccount(ACCOUNT, ASSET)
+    const load = () => readAccount(myAddr(), ASSET)
       .then((a) => { if (on) { setAcct(a); setErr(""); } })
       .catch(() => on && setErr("We can't reach QoreChain right now. Payments are paused until we can check your walls."));
     load();
@@ -172,7 +174,7 @@ export function PayScreen() {
             key="pay"
             block
             run={async (step) => {
-              const r = await actions.pay(ACCOUNT, ASSET, payee as Address, amt, step);
+              const r = await actions.pay(myAddr(), ASSET, payee as Address, amt, step);
               setReceipt({ to: payee, amount: amt, txHash: r.txHash });
               setRecent((list) => [payee, ...list.filter((x) => x !== payee)].slice(0, RECENT_LIMIT));
               return "Paid";
@@ -186,7 +188,7 @@ export function PayScreen() {
             key="ask"
             block
             run={async (step) => {
-              await actions.requestWiden(ACCOUNT, { kind: "Spend", asset: TOKENS.fUSD.address, to: payee as `0x${string}`, amount: String(amt) }, step);
+              await actions.requestWiden(myAddr(), { kind: "Spend", asset: TOKENS.fUSD.address, to: payee as `0x${string}`, amount: String(amt) }, step);
               return "Sent to your phone";
             }}
           >

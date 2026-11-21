@@ -1,0 +1,9 @@
+.receive { display: grid; gap: var(--s2); max-width: 720px; }
+.receive-main { display: grid; gap: var(--s2); }
+.receive-qr { justify-self: start; background: #FFFFFF; padding: 8px; border-radius: var(--r-plate); }
+.qr { width: 200px; height: 200px; display: block; }
+.copy-line { display: grid; gap: 6px; }
+.copy-line .addr { word-break: break-all; font-size: 14px; color: var(--on-plate); }
+.copy-line .btn { justify-self: start; min-height: 44px; }
+.receive .field { display: grid; gap: 6px; }
+.receive .field input { min-height: 48px; border-radius: var(--r-input); border: 1.5px solid var(--border); padding: 0 12px; font: 600 17px var(--f-sans); background: var(--sheet); color: var(--text); }

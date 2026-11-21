@@ -1,0 +1,68 @@
+// Approval queue: requests from the laptop (or the bill agent) waiting for the phone.
+// The server only ever holds ciphertext: every request body is a QoreSeal envelope encrypted
+// to the phone account's ML-KEM key, so a breached server can't read or forge a request.
+// Storage is pluggable: memory for tests, a JSON file for local dev, a hosted store at deploy time.
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+
+export interface QueuedRequest {
+  id: string;
+  account: string;        // Bulkhead account (0x)
+  phone: string;          // phone account (qor1...), the envelope's recipient
+  envelope: string;       // "qoreseal:..." text, opaque to the server
+  createdAt: number;      // ms
+  expiresAt: number;      // ms
+  status: "waiting" | "approved" | "refused" | "expired";
+  txHash?: string;
+}
+
+export interface Store {
+  list(): QueuedRequest[];
+  put(r: QueuedRequest): void;
+}
+
+export class MemoryStore implements Store {
+  private rows = new Map<string, QueuedRequest>();
+  list() { return [...this.rows.values()]; }
+  put(r: QueuedRequest) { this.rows.set(r.id, r); }
+}
+
+export class FileStore implements Store {
+  private path: string;
+  constructor(path: string) { this.path = path; }
+  list(): QueuedRequest[] { return existsSync(this.path) ? JSON.parse(readFileSync(this.path, "utf8")) : []; }
+  put(r: QueuedRequest) { const rows = this.list().filter((x) => x.id !== r.id); rows.push(r); writeFileSync(this.path, JSON.stringify(rows, null, 2)); }
+}
+
+const ENVELOPE = /^qoreseal:[A-Za-z0-9_-]+$/;
+const ADDR = /^0x[0-9a-fA-F]{40}$/, QOR = /^qor1[0-9a-z]{38,58}$/;
+export const TTL_MS = 10 * 60 * 1000;
+
+export class BadRequest extends Error {}
+
+export function submit(store: Store, body: { account?: string; phone?: string; envelope?: string }, now = Date.now()): QueuedRequest {
+  if (!ADDR.test(body.account ?? "")) throw new BadRequest("account must be a 0x address.");
+  if (!QOR.test(body.phone ?? "")) throw new BadRequest("phone must be a qor1 address.");
+  if (!ENVELOPE.test(body.envelope ?? "") || body.envelope!.length > 20_000) throw new BadRequest("envelope must be a QoreSeal envelope.");
+  const r: QueuedRequest = { id: crypto.randomUUID(), account: body.account!.toLowerCase(), phone: body.phone!, envelope: body.envelope!, createdAt: now, expiresAt: now + TTL_MS, status: "waiting" };
+  store.put(r);
+  return r;
+}
+
+export function waitingFor(store: Store, phone: string, now = Date.now()): QueuedRequest[] {
+  return store.list().map((r) => (r.status === "waiting" && r.expiresAt < now ? { ...r, status: "expired" as const } : r))
+    .filter((r) => r.phone === phone && r.status === "waiting").sort((a, b) => a.createdAt - b.createdAt);
+}
+
+export function get(store: Store, id: string, now = Date.now()): QueuedRequest | undefined {
+  const r = store.list().find((x) => x.id === id);
+  return r && r.status === "waiting" && r.expiresAt < now ? { ...r, status: "expired" } : r;
+}
+
+/** The phone reports what happened. Approval is proven by the chain transaction, not by this record. */
+export function settle(store: Store, id: string, outcome: { status: "approved" | "refused"; txHash?: string }, now = Date.now()) {
+  const r = get(store, id, now);
+  if (!r) throw new BadRequest("No such request.");
+  if (r.status !== "waiting") throw new BadRequest(`This request is already ${r.status}.`);
+  if (outcome.status === "approved" && !/^0x[0-9a-fA-F]{64}$/.test(outcome.txHash ?? "")) throw new BadRequest("An approval needs its transaction hash.");
+  store.put({ ...r, status: outcome.status, txHash: outcome.txHash });
+}

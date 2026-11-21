@@ -115,6 +115,7 @@ export function AgentScreen() {
         </ul>
       </section>
 
+      <AgentKeyPlate />
       <div className="agent-secondary">
         <ActionButton
           kind="secondary"
@@ -138,5 +139,32 @@ export function AgentScreen() {
         </ActionButton>
       </div>
     </div>
+  );
+}
+
+/** The agent's key is linked for a limited time. Renewing re-links the same key with the same rule. */
+function AgentKeyPlate() {
+  const [st, setSt] = useState<{ linked: boolean; secondsLeft: number | null } | null>(null);
+  const [err, setErr] = useState("");
+  const load = () => fetch("/api/agent-key").then(async (r) => { const j = await r.json(); if (!r.ok) throw new Error(j.error); setSt(j); setErr(""); })
+    .catch((e) => setErr(e instanceof Error ? e.message : "We can't read the agent key right now."));
+  useEffect(() => { void load(); const t = setInterval(() => void load(), 30_000); return () => clearInterval(t); }, []);
+  const mins = st?.secondsLeft != null ? Math.round(st.secondsLeft / 60) : null;
+  return (
+    <section className="plate" aria-labelledby="agent-key-h" style={{ display: "grid", gap: 10 }}>
+      <h2 id="agent-key-h" style={{ color: "var(--on-plate)" }}>The agent's key</h2>
+      {err ? <p role="alert">{err}</p>
+        : !st ? <p className="muted">Reading the key from the chain.</p>
+        : st.linked ? <p>Linked for about {mins} more minutes. When it runs out, the agent can't pay anything until you renew it.</p>
+        : <p>Not linked. The agent can't pay anything until you renew it.</p>}
+      <ActionButton kind="primary" run={async (step) => {
+        step("Renewing the key on QoreChain", 0.5);
+        const r = await fetch("/api/agent-key", { method: "POST" }); const j = await r.json();
+        if (!r.ok) throw new Error(j.error ?? "The renewal was refused.");
+        await load();
+        return "Renewed for an hour";
+      }}>Renew the agent's key</ActionButton>
+      <p className="muted" style={{ fontSize: 13 }}>Same key, same rule: fUSD only, 10.00 per payment, 25.00 a day.</p>
+    </section>
   );
 }

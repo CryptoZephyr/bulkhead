@@ -143,7 +143,7 @@ export function ReplayScreen() {
       <div className="hull-wrap">
         <HullRow compartments={hull} />
         <p className="replay-caption muted">
-          The walls are drawn from the demo account's records. The seal comes from the QOR parity test, and the agent's balance is from its run.
+          The walls and the seal are from the fUSD demo account. The forged signature and the approval while sealed come from the QOR parity test, and the agent's balance is from its run.
         </p>
       </div>
 

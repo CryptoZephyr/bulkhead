@@ -27,8 +27,8 @@ export interface ReplayStep {
 
 /** Demo account numbers in fUSD, from the records. Used to draw the hull where a live read is not needed. */
 export const DEMO = {
-  /** Bulkhead account after the 21 November run (DEPLOYMENTS.md: Bulkhead 70 fUSD, untouched by the agent). */
-  bulkhead: 70,
+  /** Bulkhead account after the 21 November runs: 70 fUSD after the agent top-up, then 2.00 paid inside the walls (round 22). */
+  bulkhead: 68,
   /** The fUSD floor, the part that leaves only with the phone (spike log, round 21: 20 floor). */
   savingsFloor: 20,
   /** Agent account at the end of the run (DEPLOYMENTS.md: agent account 13). */
@@ -53,15 +53,22 @@ export const REPLAY_STEPS: ReplayStep[] = [
     id: "over-cap",
     title: "The stolen key pays over the cap",
     summary: "The thief's key sends a payment over the per-payment cap. The chain lets the transaction through, seals the account, and moves nothing.",
-    source: "Parity test on a QOR account, 21 November, rerun on the current contracts with the same result.",
+    source: "The fUSD demo account, 21 November.",
     sealed: true,
     results: [
       {
-        what: "Spend 0.2 QOR, over the per-payment cap",
+        what: "Spend 2.00 fUSD inside the walls",
+        outcome: "paid",
+        detail: "Within the 5.00 per-payment cap. Paid.",
+        gas: 119277,
+        hash: "0x83af506eee4d723a1829af15d42f295ee579b807d96c12821bc7d38f4243da73",
+      },
+      {
+        what: "Stolen key spends 6.00 fUSD, over the 5.00 per-payment cap",
         outcome: "sealed",
         detail: "The transaction succeeded. The account sealed. Nothing moved.",
-        gas: 109368,
-        hash: "0x42ddfb838fdc80fcbfe735a2cc9dfb8c6d761f6dfe574459294dc308c7532ca1",
+        gas: 109584,
+        hash: "0x687fb72d3e47b14a2f105d5aabdff640f2486508f7fd1fcb8ac4c1f51bb6878b",
       },
     ],
   },

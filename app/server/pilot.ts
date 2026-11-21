@@ -87,7 +87,7 @@ export function planRequest(s: PilotSettings, c: Ceiling, req: { amount: bigint;
   const period = min(c.period, max(s.dayPeriod, req.amount));
   const until = untilBlock(block, Math.min(req.untilMs - now, msToQuiet(s, now)), periodBlocks);
   const note = req.amount > c.perTx ? ` Each payment is still capped at the ceiling's per-payment limit, so pay it in parts or use your phone.` : "";
-  return { ok: true, target: { perTx, period, until, restPerTx: s.restPerTx, restPeriod: s.restPeriod, reason: `You asked for room for ${req.amount} base units. Opened within your phone-signed ceiling until your requested time or quiet hours, whichever comes first.${note}` } };
+  return { ok: true, target: { perTx, period, until, restPerTx: s.restPerTx, restPeriod: s.restPeriod, reason: `You asked for room for ${(Number(req.amount) / 1e6).toFixed(2)} fUSD. Opened within your phone-signed ceiling until your requested time or quiet hours, whichever comes first.${note}` } };
 }
 
 /** Whether the chain already holds this target (ignoring a small drift in `until`). */

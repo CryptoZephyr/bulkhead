@@ -54,7 +54,7 @@ const broadcaster = {
 };
 
 /** A one-transaction window scoped to exactly the target. */
-async function openWindowFor(me: UnifiedAccount, target: Address) {
+export async function openWindowFor(me: UnifiedAccount, target: Address) {
   const r = await (await fetch(`${REST}/cosmos/auth/v1beta1/accounts/${me.cosmos}`)).json();
   const a = r.account.base_account ?? r.account;
   const signer = new EthNativeSigner(me, { signMode: "hybrid", rest: REST });

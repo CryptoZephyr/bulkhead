@@ -30,3 +30,24 @@
 .hero-foot .lead { color: var(--on-plate-2); font-size: 18px; }
 .hero-act { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
 .hero-act strong { color: var(--lime); font-weight: 850; font-stretch: var(--wide); }
+
+.next-step { display: flex; gap: var(--s2); align-items: center; justify-content: space-between; flex-wrap: wrap;
+  background: var(--lime); color: #0E2A13; border-radius: var(--r-plate); padding: var(--s2); }
+.next-step p { margin: 2px 0 0; color: #0E2A13; }
+.next-step .btn-primary { background: #0E2A13; color: var(--lime); }
+.next-step .btn { text-decoration: none; }
+
+/* Phones: the side rail becomes a bottom tab bar, so no column of empty space. */
+@media (max-width: 760px) {
+  .shell { min-height: 100vh; }
+  .shell > .body { padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+  .rail { position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 6; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0;
+    background: var(--plate); padding: 6px max(8px, env(safe-area-inset-left, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--weld); }
+  .rail a { background: none; padding: 10px 4px; min-height: 52px; text-align: center; font-size: 13px; border-radius: 0; display: grid; place-items: center; }
+  .rail a[aria-current="page"] { color: var(--lime); }
+  .rail a[aria-current="page"]::before { left: 25%; right: 25%; top: 0; bottom: auto; width: auto; height: 3px; border-radius: 0 0 2px 2px; }
+  .foot-row { display: none; }
+  .topbar .account { padding: 8px 10px; margin-left: auto; }
+  .topbar .readout { order: 3; flex-basis: 100%; padding-bottom: 8px; }
+  .topbar-in { gap: 8px var(--s2); }
+}

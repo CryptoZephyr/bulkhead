@@ -12,6 +12,7 @@ import { LandingScreen } from "./screens/Landing";
 import { ReplayScreen } from "./screens/Replay";
 import { PhoneScreen } from "./screens/Phone";
 import { SettingsScreen } from "./screens/Settings";
+import { SetupScreen } from "./screens/Setup";
 
 type ScreenDef = { title: string; sentence: string; body: () => ReactElement; bare?: boolean };
 
@@ -25,6 +26,7 @@ const SCREENS: Record<string, ScreenDef> = {
   proof: { title: "Contracts and proof", sentence: "Check every address yourself.", body: () => <ProofScreen /> },
   help: { title: "Help", sentence: "Short answers to real questions.", body: () => <HelpScreen /> },
   replay: { title: "Attack replay", sentence: "Watch a stolen laptop key fail against a real account.", body: () => <ReplayScreen /> },
+  setup: { title: "Set up Bulkhead", sentence: "Let's build your hull. It takes about two minutes.", body: () => <SetupScreen /> },
   settings: { title: "Account", sentence: "Theme, recovery account and paired phone.", body: () => <SettingsScreen /> },
 };
 

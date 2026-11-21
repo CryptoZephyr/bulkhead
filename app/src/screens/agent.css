@@ -25,3 +25,12 @@
   background: color-mix(in srgb, var(--on-plate) 8%, transparent); color: var(--on-plate); font-size: 14px; }
 .decision details .muted { font-size: 14px; }
 .plate :focus-visible { outline-color: var(--lime); }
+.agent-how ol { margin: 0; padding-left: 1.2em; display: grid; gap: 10px; color: var(--on-plate); }
+.agent-bills, .agent-decisions { display: grid; gap: 10px; }
+.agent-add, .agent-invoice { display: grid; gap: 12px; }
+.agent-add-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
+.agent-invoice summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 800; color: var(--on-plate); }
+.agent-invoice[open] { gap: 12px; }
+.agent-status { display: flex; flex-wrap: wrap; }
+.agent-status > .plate { flex: 1 1 240px; }
+@media (max-width: 600px) { .agent-add-row { grid-template-columns: 1fr; } }

@@ -2,14 +2,14 @@ import { defineConfig, type Plugin, type ViteDevServer } from "vite";
 import react from "@vitejs/plugin-react";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-// Runs the Vercel-style functions in api/ inside the dev and preview servers, so the whole
+// Runs the server functions in functions/ inside the dev and preview servers, so the whole
 // app (gateway, relayer, approval queue, agent) works locally exactly as it will when deployed.
 const ROUTES: [RegExp, string][] = [
-  [/^\/api\/rest\//, "/api/rest.ts"],
-  [/^\/api\/relay$/, "/api/relay.ts"],
-  [/^\/api\/requests$/, "/api/requests.ts"],
-  [/^\/api\/agent$/, "/api/agent.ts"],
-  [/^\/api\/agent-key$/, "/api/agent-key.ts"],
+  [/^\/api\/rest\//, "/functions/rest.ts"],
+  [/^\/api\/relay$/, "/functions/relay.ts"],
+  [/^\/api\/requests$/, "/functions/requests.ts"],
+  [/^\/api\/agent$/, "/functions/agent.ts"],
+  [/^\/api\/agent-key$/, "/functions/agent-key.ts"],
 ];
 
 function apiBridge(): Plugin {

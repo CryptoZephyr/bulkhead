@@ -11,7 +11,7 @@ class BlobPairs implements PairStore {
   async get(sid: string): Promise<PairSession | null> {
     const { list } = await import("@vercel/blob");
     const { blobs } = await list({ prefix: `pair/${sid}.json` });
-    return blobs[0] ? (await fetch(blobs[0].url, { cache: "no-store" })).json() : null;
+    return blobs[0] ? (await fetch(`${blobs[0].url}?v=${Date.now()}`, { cache: "no-store" })).json() : null;
   }
   async put(s: PairSession) {
     const { put } = await import("@vercel/blob");

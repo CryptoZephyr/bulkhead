@@ -60,7 +60,7 @@ export class BlobBills implements BillStore {
     const { list } = await import("@vercel/blob");
     const { blobs } = await list({ prefix: `bills/${a.toLowerCase()}.json` });
     if (!blobs[0]) return empty(a);
-    return (await fetch(blobs[0].url, { cache: "no-store" })).json();
+    return (await fetch(`${blobs[0].url}?v=${Date.now()}`, { cache: "no-store" })).json();
   }
   async put(b: BillBook) {
     const { put } = await import("@vercel/blob");

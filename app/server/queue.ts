@@ -16,21 +16,21 @@ export interface QueuedRequest {
 }
 
 export interface Store {
-  list(): QueuedRequest[];
-  put(r: QueuedRequest): void;
+  list(): Promise<QueuedRequest[]>;
+  put(r: QueuedRequest): Promise<void>;
 }
 
 export class MemoryStore implements Store {
   private rows = new Map<string, QueuedRequest>();
-  list() { return [...this.rows.values()]; }
-  put(r: QueuedRequest) { this.rows.set(r.id, r); }
+  async list() { return [...this.rows.values()]; }
+  async put(r: QueuedRequest) { this.rows.set(r.id, r); }
 }
 
 export class FileStore implements Store {
   private path: string;
   constructor(path: string) { this.path = path; }
-  list(): QueuedRequest[] { return existsSync(this.path) ? JSON.parse(readFileSync(this.path, "utf8")) : []; }
-  put(r: QueuedRequest) { const rows = this.list().filter((x) => x.id !== r.id); rows.push(r); writeFileSync(this.path, JSON.stringify(rows, null, 2)); }
+  async list(): Promise<QueuedRequest[]> { return existsSync(this.path) ? JSON.parse(readFileSync(this.path, "utf8")) : []; }
+  async put(r: QueuedRequest) { const rows = (await this.list()).filter((x) => x.id !== r.id); rows.push(r); writeFileSync(this.path, JSON.stringify(rows, null, 2)); }
 }
 
 const ENVELOPE = /^qoreseal:[A-Za-z0-9_-]+$/;
@@ -39,30 +39,50 @@ export const TTL_MS = 10 * 60 * 1000;
 
 export class BadRequest extends Error {}
 
-export function submit(store: Store, body: { account?: string; phone?: string; envelope?: string }, now = Date.now()): QueuedRequest {
+export async function submit(store: Store, body: { account?: string; phone?: string; envelope?: string }, now = Date.now()): Promise<QueuedRequest> {
   if (!ADDR.test(body.account ?? "")) throw new BadRequest("account must be a 0x address.");
   if (!QOR.test(body.phone ?? "")) throw new BadRequest("phone must be a qor1 address.");
   if (!ENVELOPE.test(body.envelope ?? "") || body.envelope!.length > 20_000) throw new BadRequest("envelope must be a QoreSeal envelope.");
   const r: QueuedRequest = { id: crypto.randomUUID(), account: body.account!.toLowerCase(), phone: body.phone!, envelope: body.envelope!, createdAt: now, expiresAt: now + TTL_MS, status: "waiting" };
-  store.put(r);
+  await store.put(r);
   return r;
 }
 
-export function waitingFor(store: Store, phone: string, now = Date.now()): QueuedRequest[] {
-  return store.list().map((r) => (r.status === "waiting" && r.expiresAt < now ? { ...r, status: "expired" as const } : r))
+export async function waitingFor(store: Store, phone: string, now = Date.now()): Promise<QueuedRequest[]> {
+  return (await store.list()).map((r) => (r.status === "waiting" && r.expiresAt < now ? { ...r, status: "expired" as const } : r))
     .filter((r) => r.phone === phone && r.status === "waiting").sort((a, b) => a.createdAt - b.createdAt);
 }
 
-export function get(store: Store, id: string, now = Date.now()): QueuedRequest | undefined {
-  const r = store.list().find((x) => x.id === id);
+export async function get(store: Store, id: string, now = Date.now()): Promise<QueuedRequest | undefined> {
+  const r = (await store.list()).find((x) => x.id === id);
   return r && r.status === "waiting" && r.expiresAt < now ? { ...r, status: "expired" } : r;
 }
 
 /** The phone reports what happened. Approval is proven by the chain transaction, not by this record. */
-export function settle(store: Store, id: string, outcome: { status: "approved" | "refused"; txHash?: string }, now = Date.now()) {
-  const r = get(store, id, now);
+export async function settle(store: Store, id: string, outcome: { status: "approved" | "refused"; txHash?: string }, now = Date.now()) {
+  const r = await get(store, id, now);
   if (!r) throw new BadRequest("No such request.");
   if (r.status !== "waiting") throw new BadRequest(`This request is already ${r.status}.`);
   if (outcome.status === "approved" && !/^0x[0-9a-fA-F]{64}$/.test(outcome.txHash ?? "")) throw new BadRequest("An approval needs its transaction hash.");
-  store.put({ ...r, status: outcome.status, txHash: outcome.txHash });
+  await store.put({ ...r, status: outcome.status, txHash: outcome.txHash });
+}
+
+/** Vercel Blob: one JSON object per request. Requests hold only ciphertext, so public blob URLs expose nothing readable. */
+export class BlobStore implements Store {
+  async list(): Promise<QueuedRequest[]> {
+    const { list } = await import("@vercel/blob");
+    const { blobs } = await list({ prefix: "requests/" });
+    const rows = await Promise.all(blobs.map((b) => fetch(b.url, { cache: "no-store" }).then((r) => r.json() as Promise<QueuedRequest>).catch(() => null)));
+    return rows.filter((r): r is QueuedRequest => !!r);
+  }
+  async put(r: QueuedRequest) {
+    const { put } = await import("@vercel/blob");
+    await put(`requests/${r.id}.json`, JSON.stringify(r), { access: "public", addRandomSuffix: false, allowOverwrite: true, contentType: "application/json", cacheControlMaxAge: 0 });
+  }
+}
+
+export function defaultStore(): Store {
+  if (process.env.BLOB_READ_WRITE_TOKEN) return new BlobStore();
+  if (process.env.QUEUE_FILE) return new FileStore(process.env.QUEUE_FILE);
+  return new MemoryStore();
 }

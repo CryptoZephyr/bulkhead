@@ -3,7 +3,7 @@ import { relay, Refused } from "../server/relayer.ts";
 
 export const config = { runtime: "nodejs", maxDuration: 60 };
 
-export default async function handler(req: Request): Promise<Response> {
+async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
   const mnemonic = process.env.RELAYER_MNEMONIC, factory = process.env.FACTORY_ADDRESS;
   if (!mnemonic || !factory) return Response.json({ error: "Relayer is not configured." }, { status: 503 });
@@ -16,3 +16,8 @@ export default async function handler(req: Request): Promise<Response> {
     return Response.json({ error: (e as Error).message }, { status: e instanceof Refused ? 422 : 502 });
   }
 }
+
+// Vercel calls the method exports.
+export const GET = handler;
+export const POST = handler;
+export default handler;

@@ -5,7 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { sealToAddresses } from "@qorechain/qoreseal/network";
 import { envelopeToText } from "@qorechain/qoreseal";
 import { runAgent, REST, CHAIN } from "../server/agent.ts";
-import { submit, FileStore, MemoryStore, type Store } from "../server/queue.ts";
+import { submit, defaultStore, type Store } from "../server/queue.ts";
 import type { Rule } from "../server/policy.ts";
 
 export const config = { runtime: "nodejs", maxDuration: 60 };
@@ -16,7 +16,7 @@ const handled = new Set<string>();
 let spentDay = "", spent = 0n;
 let store: Store | null = null;
 
-export default async function handler(req: Request): Promise<Response> {
+async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return Response.json({ error: "Not allowed." }, { status: 405 });
   const e = process.env;
   const need = ["SERV_API_KEY", "AGENT_OWNER_MNEMONIC", "AGENT_KEY_HEX", "RELAYER_MNEMONIC", "AGENT_PAYEES", "BULKHEAD_ACCOUNT", "PHONE_QOR"];
@@ -31,7 +31,7 @@ export default async function handler(req: Request): Promise<Response> {
   const client = new Anthropic({ baseURL: "https://inference-api.openserv.ai", apiKey: null, authToken: e.SERV_API_KEY });
   const decisions = await runAgent(client, { rule, agentAccountIndex: Number(e.AGENT_ACCOUNT_INDEX ?? 0), ownerMnemonic: e.AGENT_OWNER_MNEMONIC!, agentKeyHex: e.AGENT_KEY_HEX!, relayerMnemonic: e.RELAYER_MNEMONIC! },
     invoices, spent, handled, { fUSD: { address: FUSD, decimals: 6 } }, fmt);
-  store ??= e.QUEUE_FILE ? new FileStore(e.QUEUE_FILE) : new MemoryStore();
+  store ??= defaultStore();
   const out = [];
   for (const d of decisions) {
     if (d.paid) spent += d.paid.moved;
@@ -40,9 +40,14 @@ export default async function handler(req: Request): Promise<Response> {
       const amount = BigInt(Math.round(Number(d.extracted.amount) * 1e6));
       const plain = { v: 1, account: e.BULKHEAD_ACCOUNT, from: "agent", intent: { kind: "Spend", asset: FUSD, to: d.extracted.payee_address.trim(), amount: String(amount) }, createdAt: Date.now() };
       const env = await sealToAddresses({ rest: REST, chainId: CHAIN, purpose: "bulkhead-request-v1", mode: "mlkem", recipients: [{ address: e.PHONE_QOR! }], plaintext: new TextEncoder().encode(JSON.stringify(plain)) });
-      requestId = submit(store, { account: e.BULKHEAD_ACCOUNT, phone: e.PHONE_QOR, envelope: envelopeToText(env) }).id;
+      requestId = (await submit(store, { account: e.BULKHEAD_ACCOUNT, phone: e.PHONE_QOR, envelope: envelopeToText(env) })).id;
     }
     out.push({ invoice: d.invoice.id, decision: d.verdict.decision, reason: d.verdict.reason, txHash: d.paid?.txHash, moved: d.paid ? fmt(d.paid.moved) : undefined, requestId });
   }
   return Response.json({ decisions: out, spentToday: fmt(spent) });
 }
+
+// Vercel calls the method exports.
+export const GET = handler;
+export const POST = handler;
+export default handler;

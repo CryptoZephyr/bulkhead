@@ -4,7 +4,8 @@ import { defineChain } from "viem";
 export const CHAIN_ID = "qorechain-diana";
 export const EVM_RPC = "https://evm-testnet.qore.host";
 // The public REST API sends no CORS headers (measured), so browsers go through our gateway.
-export const REST = ((import.meta as { env?: Record<string, string> }).env?.VITE_GATEWAY) ?? "/api/rest";
+export const REST = ((import.meta as { env?: Record<string, string> }).env?.VITE_GATEWAY)
+  ?? (typeof location !== "undefined" ? `${location.origin}/api/rest` : "https://api-testnet.qore.host");
 export const EXPLORER_TX = "https://explore.qore.network/tx/";
 
 export const qorechainTestnet = defineChain({

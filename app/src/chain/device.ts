@@ -52,8 +52,10 @@ export async function phoneReadiness(a: UnifiedAccount): Promise<{ funded: boole
   const bal = await (await fetch(`${REST}/cosmos/bank/v1beta1/balances/${a.cosmos}`)).json();
   const funded = (bal.balances ?? []).some((b: { denom: string; amount: string }) => b.denom === "uqor" && BigInt(b.amount) > 200_000n);
   const pq = await fetchPqcStatus({ rest: REST, address: a.cosmos }).catch(() => ({ registered: false }) as { registered: boolean });
-  const kem = await fetchKemKey({ rest: REST, address: a.cosmos }).then(() => true).catch(() => false);
-  return { funded, pqProven: !!pq.registered, kemRegistered: kem };
+  const kem = await fetchKemKey({ rest: REST, address: a.cosmos }).then((k) => !!k.registered && !!k.publicKey?.length).catch(() => false);
+  // The account requires a proven key, so "registered" alone isn't enough.
+  const proven = !!pq.registered && (pq as { proven?: boolean }).proven !== false;
+  return { funded, pqProven: proven, kemRegistered: kem };
 }
 
 const broadcaster = {

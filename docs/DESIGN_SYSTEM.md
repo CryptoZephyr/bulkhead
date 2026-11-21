@@ -10,7 +10,7 @@ Meaning, in one sentence: damage stays where it starts.
 
 ## 1b. Logo
 
-Supplied by the owner on 21 November 2026 and redrawn as an exact vector. Pending the owner's confirmation of the redraw, after which it is locked: copied, never retyped, traced, redrawn or simplified.
+LOCKED. Supplied by the owner and redrawn as an exact vector on 21 November 2026. The owner confirmed the redraw on 21 November 2026. The geometry and colours are final: the file is copied, never retyped, traced, redrawn, simplified or replaced. Any change needs the owner's approval and a new hash.
 
 ![Bulkhead mark](brand/mark/bulkhead-mark.svg)
 
@@ -155,17 +155,18 @@ Setup builds the hull. Each choice adds to a hull row that grows on screen: your
 
 An empty compartment keeps its plate and shows its walls with no fill, plus one line and the action that fills it: "Savings is empty. Money here only leaves with your phone." with "Move money into Savings". No illustrations.
 
-## 12. Footer: the load plate
+## 12. Footer: the hero footer (owner, 21 November)
 
-Ships carry a load plate that states what each part can safely take. Bulkhead's footer does the same for the account.
+The footer is a closing hero, the last thing a visitor sees and a second chance to start.
 
-- A Hull band (Dock in dark mode) split into three plates joined by seams, so the footer itself is a hull row:
-  - Left plate: the lockup and "Watertight walls inside your money."
-  - Middle plate: the links as plain rows, grouped under small labels: Use (Hull, Pay, Activity), Learn (How it works, Help), Proof (Contracts and proof, Source code).
-  - Right plate: the load reading. On the landing page it shows the demo account, in the app it shows yours: "Right now the most anyone could take: Everyday 0.85 fUSD, Agent 13.00 fUSD, Savings 0.00 fUSD." It updates live from the chain.
-- Under the plates, one line: "QoreChain testnet. Use test funds only." and "© 2026 Bulkhead".
-- No large logo, no silhouette, no theme switch (the theme choice lives in the account sheet).
-- On phone the three plates stack, joined by horizontal seams.
+- A full-width Hull band (Dock in dark mode). Its top edge is straight, no cut corner, no silhouette, no photo.
+- Headline in Archivo at its widest, 56 to 88px, weight 850, On-Hull text: "Damage stays where it starts."
+- One line under it: "Watertight walls inside your money. Only the post-quantum key on your phone can move a wall."
+- One main button, a Lime plate with a Hull label: "Create my Bulkhead". In the app it becomes the next useful action instead, for example "Pair your phone" if that step isn't done.
+- A live line beside the button, read from the chain: on the landing page for the demo account, in the app for yours: "Right now the most anyone could take: 0.85 fUSD."
+- Below, separated by a 1px weld-tone line: the mark at 24px with "Bulkhead" as live text, the links in one row (Hull, Pay, Activity, How it works, Help, Contracts and proof, Source code), then "QoreChain testnet. Use test funds only." and "© 2026 Bulkhead".
+- No theme switch here, it lives in the account sheet. On phone the headline drops to 44px, the button goes full width and the links wrap.
+- On desktop app screens the footer shows only its bottom row, so the closing hero doesn't repeat under every screen. The full hero footer is on the landing page and on Help.
 
 ## 13. Type, spacing and layout
 
@@ -182,14 +183,13 @@ Ships carry a load plate that states what each part can safely take. Bulkhead's 
 - [ ] Colour split: Bone 60, Hull 30, Lime 10, rust warnings.
 - [ ] Surfaces: plates with 6px radius, 4px seams, the weld line, no shadows.
 - [ ] Status: the hull row as a chart, separate from the logo.
-- [ ] Footer: the load plate.
 - [ ] Landing: the live attack replay as the hero.
 - [ ] Setup: building the hull, no step counter.
 - [ ] Navigation: left rail on the laptop, network readout in the top bar.
 - [ ] Typeface: Archivo with IBM Plex Mono.
-- [x] Logo: supplied by the owner (21 Nov). Confirm the redraw to lock it.
+- [x] Logo: supplied by the owner, redraw confirmed and locked (21 Nov).
 - [x] Palette from the logo: Hull #0E2A13 and Lime #D8FFA6 (owner chose option a, 21 Nov).
-- [ ] Footer: grounded footer with a photo (owner sourcing it), replacing or combining with the load plate.
+- [x] Footer: hero footer (owner, 21 Nov).
 
 ## 15. Build and test rules
 

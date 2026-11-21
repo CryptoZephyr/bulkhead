@@ -47,3 +47,26 @@ Final balances: payee 17, agent account 13, Bulkhead 70 fUSD (untouched by the a
 | Stolen key spends 6.00 fUSD, over the 5.00 per-payment cap | tx success, sealed, nothing moved | 109,584 | 0x687fb72d3e47b14a2f105d5aabdff640f2486508f7fd1fcb8ac4c1f51bb6878b |
 
 The demo account now holds 68 fUSD, is sealed, and its blast radius is 0. It unseals only through a Safety-key widening after the delay.
+
+## Contracts v2 (21 November, round 23): phone-only seal and lost-phone replacement
+
+| Contract | Address |
+|---|---|
+| BulkheadFactory v2 (current) | 0xe723f38ffb199548f96da2b6cc677cbb2740372f |
+| Demo account v2 (current, 100 fUSD, open) | 0x3d68f146EaEbFBCB1C0f64eFC07DbD687fc76959 |
+| Test account v2 (phone replaced, sealed) | 0x5412c0F2267872aFc7E53312d6A25a778619d0Ca |
+
+| Step | Result | Transaction |
+|---|---|---|
+| Deploy factory v2 | OK, gas 3,674,293 | 0xac4965eab7721876759e1af2e8c59b8855b9c446c7d75c2f30cc3d91b06e685b |
+| Deploy demo account v2, real ML-DSA-87 | OK, gas 2,767,666 | 0x5490692bd52aa0c07f62710cf99b7990caa1a7a7878b022e4d9f9482147dc32d |
+| Forged phone seal | refused, BadSafetySignature | |
+| Phone seals on its own | sealed | 0x11a44d14473550395c10f9073a46e2acdb193dc6e3bb6c2e77b8fd38aba0fb95 |
+| Laptop proposes a new phone | sealed, wait started | 0xbe82ce109c27965421247380565105b1ad48d2e82cc3f1805b33eadbea503c34 |
+| Old phone vetoes it | cancelled | 0x442daf6d6409c1698c308684031d0cb31a39d51a3cedc6429547635efba3a68f |
+| Laptop proposes again (old phone lost) | wait started | 0xa23dc1777eff378572e5aee6e14be7d54a8071d981e26edbec7d6b1a5eb9f229 |
+| Confirm before the wait | refused, TooEarly | |
+| Confirm after the wait | new phone in charge, account still sealed | 0x5afafb74d82dc7540e0777a51dbed11785e4ae3de2a64814857e3db74f60e8da |
+| Fund demo v2 with 100 fUSD (MsgConvertCoin) | 100 fUSD, blast radius 5.00 | 2AEE70588179627494D6C2B0D0B4B0A6FABDA1154D87427E3E69E5A17C4DB442 |
+
+The earlier factory and demo accounts stay on chain; the replay and activity history link to their transactions.

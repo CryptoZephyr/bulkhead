@@ -16,8 +16,8 @@ export const qorechainTestnet = defineChain({
 });
 
 export const DEPLOYMENT = {
-  factory: "0x3df113cf4a7ddb5d22eed33f8de430d531026355",
-  demoAccount: "0x1c548456DE8683d816409eceBd19D3C4BAD75a5E",
+  factory: "0xe723f38ffb199548f96da2b6cc677cbb2740372f",
+  demoAccount: "0x3d68f146EaEbFBCB1C0f64eFC07DbD687fc76959",
 } as const;
 
 export const NATIVE = "0x0000000000000000000000000000000000000000" as const;

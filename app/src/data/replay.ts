@@ -53,7 +53,7 @@ export const REPLAY_STEPS: ReplayStep[] = [
     id: "over-cap",
     title: "The stolen key pays over the cap",
     summary: "The thief's key sends a payment over the per-payment cap. The chain lets the transaction through, seals the account, and moves nothing.",
-    source: "The fUSD demo account, 21 November.",
+    source: "The first fUSD demo account (contracts v1), 21 November.",
     sealed: true,
     results: [
       {

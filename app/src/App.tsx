@@ -57,8 +57,8 @@ export default function App() {
   const route = useRoute();
   const s = SCREENS[route];
   useEffect(() => { document.title = s ? `${s.title} · Bulkhead` : "Bulkhead"; }, [s]);
-  if (route === "" || route === "landing" || !s) return <LandingScreen />;
   if (route === "phone") return <PhoneScreen />;
+  if (route === "" || route === "landing" || !s) return <LandingScreen />;
   const body = s.needsAccount && !myAccount() ? <NoAccountYet /> : s.body();
   return <Shell route={route} title={s.title} sentence={s.sentence}>{body}</Shell>;
 }

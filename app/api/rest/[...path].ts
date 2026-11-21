@@ -2,6 +2,7 @@
 // calls this instead. It forwards reads, and accepts exactly one write: broadcasting a
 // transaction that was already signed in the browser. It cannot alter what it carries.
 export const config = { runtime: "edge" };
+export const runtime = "edge";
 
 const UPSTREAM = "https://api-testnet.qore.host";
 const BROADCAST = "/cosmos/tx/v1beta1/txs";
@@ -12,7 +13,7 @@ export function route(pathname: string): string | null {
   return p.startsWith("/") && !p.includes("..") ? p : null;
 }
 
-export default async function handler(req: Request): Promise<Response> {
+async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const path = route(url.pathname);
   if (!path) return new Response("Bad path", { status: 400 });
@@ -32,3 +33,8 @@ export default async function handler(req: Request): Promise<Response> {
   }
   return new Response("Method not allowed", { status: 405 });
 }
+
+// Vercel calls the method exports.
+export const GET = handler;
+export const POST = handler;
+export default handler;

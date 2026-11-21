@@ -3,7 +3,7 @@ import { agentKeyStatus, renewAgentKey } from "../server/agentKey.ts";
 
 export const config = { runtime: "nodejs", maxDuration: 60 };
 
-export default async function handler(req: Request): Promise<Response> {
+async function handler(req: Request): Promise<Response> {
   const e = process.env;
   if (!e.AGENT_OWNER_MNEMONIC || !e.AGENT_KEY_HEX) return Response.json({ error: "The agent is not configured." }, { status: 503 });
   const index = Number(e.AGENT_ACCOUNT_INDEX ?? 0);
@@ -15,3 +15,8 @@ export default async function handler(req: Request): Promise<Response> {
     return Response.json({ error: (err as Error).message }, { status: 502 });
   }
 }
+
+// Vercel calls the method exports.
+export const GET = handler;
+export const POST = handler;
+export default handler;

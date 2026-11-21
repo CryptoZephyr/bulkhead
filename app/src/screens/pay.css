@@ -1,0 +1,37 @@
+/* Pay screen (section 16.4). Colours are tokens only. Inside a Hull plate, feedback uses the -on-plate tokens. */
+.pay-grid { display: grid; gap: var(--s3); }
+.pay-form { display: grid; gap: var(--s3); }
+.pay-from { display: grid; gap: 4px; }
+.pay-from strong { font-size: 22px; font-weight: 850; font-stretch: var(--wide); }
+
+.field { display: grid; gap: 8px; }
+.field > label { font-size: 15px; font-weight: 700; color: var(--on-plate); }
+.field-input { width: 100%; min-height: 52px; padding: 0 var(--s2); border-radius: var(--r-input);
+  border: 1.5px solid var(--border); background: var(--sheet); color: var(--text); font: 500 17px var(--f-sans); }
+.field-input.mono { font-family: var(--f-mono); font-size: 16px; }
+.field-input::placeholder { color: var(--text-2); }
+.field-input[aria-invalid="true"] { border-color: var(--flood-on-plate); }
+.field-input:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
+.amount-row { display: flex; gap: 8px; align-items: stretch; }
+.amount-row .field-input { flex: 1; min-width: 0; }
+.unit { display: inline-flex; align-items: center; font-weight: 700; color: var(--on-plate); min-width: 52px; }
+.group { font-size: 14px; color: var(--on-plate-2); letter-spacing: .04em; overflow-wrap: anywhere; min-height: 21px; }
+.field-error { color: var(--flood-on-plate); font-weight: 600; font-size: 14px; }
+.note { color: var(--on-plate-2); font-size: 14px; font-weight: 600; }
+.hint-line { font-size: 14px; }
+
+.recent { display: grid; gap: 8px; }
+.recent-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--r-plate); cursor: pointer;
+  background: color-mix(in srgb, var(--on-plate) 10%, transparent); color: var(--on-plate); font-size: 14px; }
+.chip:focus-visible, .btn:focus-visible, summary:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
+
+.check { display: grid; gap: 4px; min-height: 48px; font-size: 15px; font-weight: 600; }
+.check .muted { font-weight: 500; }
+.check-ok { color: var(--kelp-on-plate); }
+.check-phone { color: var(--rust-on-plate); }
+
+.receipt { display: grid; gap: 8px; }
+.receipt-amount { font-size: 28px; font-weight: 850; font-stretch: var(--wide); }
+.receipt .hash { min-height: 44px; align-self: start; color: var(--text); }
+.receipt .hash .mono { font-size: 13px; }

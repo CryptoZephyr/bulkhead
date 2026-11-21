@@ -14,6 +14,8 @@ async function keyFrom(password: string, salt: Uint8Array) {
   return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: 600_000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
 }
 
+let unlocked: UnifiedAccount | null = null;
+
 export function hasStoredKey(): boolean {
   try { return !!localStorage.getItem(STORE); } catch { return false; }
 }
@@ -24,10 +26,9 @@ export async function createEverydayKey(password: string): Promise<UnifiedAccoun
   const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await keyFrom(password, salt), enc.encode(mnemonic)));
   localStorage.setItem(STORE, JSON.stringify({ v: 1, salt: b64(salt), iv: b64(iv), ct: b64(ct) }));
-  return deriveUnifiedAccount(mnemonic, 0);
+  unlocked = await deriveUnifiedAccount(mnemonic, 0);
+  return unlocked;
 }
-
-let unlocked: UnifiedAccount | null = null;
 
 export async function unlock(password: string): Promise<UnifiedAccount> {
   const raw = localStorage.getItem(STORE);

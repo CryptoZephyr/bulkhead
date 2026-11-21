@@ -1,0 +1,81 @@
+/* Setup screen (docs/DESIGN_SYSTEM.md section 16.2). All screen CSS is global once bundled,
+   so every class here is prefixed with setup-. Colours are tokens only. */
+
+.setup { display: grid; gap: var(--s2); }
+
+/* The hull being built (sections 5, 6 and 11): built compartments are HullRow plates,
+   the ones still to build are outlined plates joined by the same seam. */
+.setup-hull { display: flex; flex-wrap: wrap; gap: var(--seam); align-items: stretch; }
+.setup-hull > .hull { display: contents; }
+.setup-todo {
+  flex: 1 1 220px; min-height: 160px; display: grid; align-content: start; gap: 8px;
+  padding: 16px 24px; border: 1.5px dashed var(--border); border-radius: var(--r-plate); color: var(--text-2);
+}
+.setup-todo-name { font-size: 17px; font-weight: 800; font-stretch: var(--wide); color: var(--text); }
+
+/* Steps: one plate open at a time, finished ones one line, the rest outlined (section 11). */
+.setup-steps { display: grid; gap: 8px; }
+.setup-step { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.setup-step h2 { font-size: 20px; font-weight: 800; }
+.setup-step.is-done { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 16px 24px; }
+.setup-step.is-done h2 { font-size: 17px; font-weight: 700; }
+.setup-step.is-todo {
+  padding: 16px 24px; border: 1.5px dashed var(--border); border-radius: var(--r-plate); color: var(--text-2);
+}
+.setup-step.is-todo h2 { font-size: 17px; font-weight: 700; color: var(--text-2); }
+
+.setup-muted { color: var(--text-2); font-size: 14px; }
+.plate .setup-muted, .plate .setup-note { color: var(--on-plate-2); }
+.setup-note { font-size: 14px; }
+.setup-error { color: var(--flood-on-plate); font-weight: 600; font-size: 14px; }
+
+/* Fields (labels above, sheet inputs, 52px tall) */
+.setup-form { display: grid; gap: var(--s2); }
+.setup-fields { display: grid; gap: var(--s2); }
+.setup-field { display: grid; gap: 8px; }
+.setup-field > span { font-size: 15px; font-weight: 700; color: var(--on-plate); }
+.setup-input {
+  width: 100%; min-height: 52px; padding: 0 var(--s2); border: 0; border-radius: var(--r-input);
+  background: var(--sheet); color: var(--text); font: 500 16px var(--f-sans);
+}
+.setup-input.mono { font-family: var(--f-mono); font-size: 15px; }
+.setup-input::placeholder { color: var(--text-2); }
+.setup-input[aria-invalid="true"] { box-shadow: inset 0 0 0 2px var(--flood-on-plate); }
+.setup-unit { display: flex; align-items: center; gap: 8px; }
+.setup-unit .setup-input { flex: 1; min-width: 0; }
+.setup-unit b { font-weight: 700; color: var(--on-plate); }
+
+/* Walls: the answers and the suggested sentences with editable numbers */
+.setup-group { border: 0; margin: 0; padding: 0; display: grid; gap: var(--s2); min-width: 0; }
+.setup-group legend { padding: 0; margin-bottom: 4px; font-size: 15px; font-weight: 700; color: var(--on-plate-2); }
+.setup-walls p { font-size: 17px; line-height: 2.3; }
+.setup-walls p .setup-muted { line-height: 1.5; }
+.setup-inline {
+  display: inline-block; width: 8em; min-width: 96px; min-height: 40px; padding: 0 8px; border: 0;
+  border-radius: var(--r-input); background: var(--sheet); color: var(--text);
+  font: 600 16px var(--f-sans); vertical-align: middle;
+}
+
+/* Gas address, facts and proof plates */
+.setup-addr { display: grid; gap: 8px; }
+.setup-addr-text {
+  overflow-wrap: anywhere; font-size: 14px; padding: 10px 12px; border-radius: var(--r-input);
+  background: color-mix(in srgb, var(--on-plate) 8%, transparent);
+}
+.setup-facts { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0; }
+.setup-facts dt { font-size: 14px; font-weight: 700; color: var(--on-plate-2); }
+.setup-facts dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.setup-hash { justify-self: start; }
+
+/* Buttons used outside ActionButton. Secondary sits on a Hull plate, so it needs its border. */
+.setup .btn { justify-self: start; }
+.setup .btn-secondary { box-shadow: inset 0 0 0 1.5px var(--border); }
+.setup .btn-small { min-height: 44px; padding: 0 16px; font-size: 15px; }
+.setup :focus-visible { outline: 3px solid var(--lime); outline-offset: 2px; }
+
+@media (max-width: 600px) {
+  .setup-step.plate, .setup-step.is-done, .setup-step.is-todo { padding: 16px; }
+  .setup-facts { grid-template-columns: 1fr; gap: 4px; }
+  .setup-facts dt { margin-top: 8px; }
+  .setup-walls p { font-size: 16px; }
+}

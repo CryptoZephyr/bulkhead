@@ -4,7 +4,7 @@ Status: revision 3, 21 November 2026. The owner supplied the logo and chose its 
 
 ## 1. The idea
 
-A ship survives a breach because it is built as compartments. Water that gets in floods one compartment and the walls hold. Bulkhead does the same with money, so the whole look is drawn from how a hull is built: steel plates, welded seams, compartments with a fill level, safety yellow on the parts you operate, and hazard stripes on a door that is shut.
+A ship survives a breach because it is built as compartments. Water that gets in floods one compartment and the walls hold. Bulkhead does the same with money, so the whole look is drawn from how a hull is built: steel plates, welded seams, compartments with a fill level, lime on the parts you operate, and hazard stripes on a door that is shut.
 
 Meaning, in one sentence: damage stays where it starts.
 
@@ -179,7 +179,7 @@ Ships carry a load plate that states what each part can safely take. Bulkhead's 
 ## 14. Decisions for the owner
 
 - [ ] Direction: the hull built from plates, seams and compartments.
-- [ ] Colour: Bone, Hull, Lime, rust warnings.
+- [ ] Colour split: Bone 60, Hull 30, Lime 10, rust warnings.
 - [ ] Surfaces: plates with 6px radius, 4px seams, the weld line, no shadows.
 - [ ] Status: the hull row as a chart, separate from the logo.
 - [ ] Footer: the load plate.

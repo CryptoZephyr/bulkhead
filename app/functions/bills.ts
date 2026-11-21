@@ -88,10 +88,9 @@ async function handler(req: Request): Promise<Response> {
   try {
     if (req.method === "GET" && url.searchParams.get("cron")) {
       if (!(store() instanceof BlobBills)) return Response.json({ ran: 0 });
-      const { list } = await import("@vercel/blob");
-      const { blobs } = await list({ prefix: "bills/" });
+      const { folders } = await import("../server/blobjson.js");
       let ran = 0;
-      for (const b of blobs) { const book = await store().get(b.pathname.slice(6, -5)); if (dueBills(book).length) { await payDue(book); await store().put(book); ran++; } }
+      for (const a of await folders("bills")) { const book = await store().get(a); if (dueBills(book).length) { await payDue(book); await store().put(book); ran++; } }
       return Response.json({ ran });
     }
     if (req.method === "GET") {

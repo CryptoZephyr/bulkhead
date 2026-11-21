@@ -29,8 +29,10 @@ export async function fundFromQorex(account: Address, asset: "QOR" | "fUSD", bas
     : [...sub(1, coin(`erc20:${TOKENS.fUSD.address}`, baseUnits.toString())), ...str(2, account), ...str(3, from)];
   const typeUrl = asset === "QOR" ? "/cosmos.bank.v1beta1.MsgSend" : "/cosmos.evm.erc20.v1.MsgConvertCoin";
   step("Confirm in QoreX", 0.4);
-  const r = await q.signAndBroadcast({ chainId: CHAIN_ID, messages: [{ typeUrl, value: Uint8Array.from(value) }] });
+  // MsgConvertCoin runs the token's EVM code and needs about 420,000 gas (measured); QoreX defaults to 400,000.
+  const r = await q.signAndBroadcast({ chainId: CHAIN_ID, messages: [{ typeUrl, value: Uint8Array.from(value) }], gasLimit: asset === "fUSD" ? 700_000 : 200_000 });
   if (r.code !== 0) throw new Error(`QoreX sent it, but the chain refused it (code ${r.code}).`);
+  if (r.shield === "downgraded") throw new Error("QoreX reports this transaction went out without its post-quantum signature. Check QoreX before funding again.");
   step("Funds on the way", 1);
   return r.txHash;
 }

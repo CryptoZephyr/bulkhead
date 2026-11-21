@@ -18,3 +18,23 @@ Live parity results, 21 November (rerun on the current contracts gave the same o
 | Everyday spend over the per-tx cap | tx success, sealed, nothing moved | 109,061 |
 | spendWithApproval with a forged signature | refused | |
 | spendWithApproval below the floor while sealed, real ML-DSA-87 | OK | billed 1,500,000 (half the limit, the chain's floor) |
+
+## Agent compartment, live (21 November)
+
+| Item | Value |
+|---|---|
+| Bulkhead account with fUSD policy | 0x1c548456DE8683d816409eceBd19D3C4BAD75a5E |
+| fUSD (fest token) | 0x97143B771D34ddb9130b807b135Ae675A5a963CA, 6 decimals |
+| Token funding | MsgConvertCoin, 100 fUSD bank coins to the account's ERC-20 balance |
+| Agent account rule | fUSD only, 10 per payment, 25 per day, only fUSD.transfer |
+| Phone top-up | spendWithApproval 30 fUSD, real ML-DSA-87 |
+
+| Agent action | Result |
+|---|---|
+| Pay 8 fUSD | paid |
+| Pay 15 fUSD, over 10 per payment | blocked by the chain |
+| Pay 9 fUSD, 17 today | paid |
+| Pay 9 fUSD, 26 today, over 25 per day | blocked by the chain |
+| Hijacked key calls Bulkhead.spend directly | blocked by the chain |
+
+Final balances: payee 17, agent account 13, Bulkhead 70 fUSD (untouched by the agent).

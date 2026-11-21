@@ -502,8 +502,10 @@ export function SetupScreen() {
                   <ActionButton run={fundAccount}>Move fUSD from QoreX</ActionButton>
                 </>
               ) : (
-                <p>Install QoreX to fund your account. Your fUSD arrives with no window opened.</p>
-                <p><a href="#/hull">Skip for now and fund it later</a></p>
+                <>
+                  <p>Install QoreX to fund your account. Your fUSD arrives with no window opened.</p>
+                  <p><a href="#/hull">Skip for now and fund it later</a></p>
+                </>
               )}
               <p role="status" aria-live="polite" className="setup-muted">
                 {acct ? `Your account holds ${fmt(acct.asset.balance, T.decimals, T.places)} fUSD. Waiting for funds.` : "Reading your account from the chain."}

@@ -80,3 +80,11 @@ The earlier factory and demo accounts stay on chain; the replay and activity his
 | Agent pays 1.50 after 24.00 that day | blocked by the chain's 25.00 a day rule | |
 | QoreX (official wallet mock, real signing) converts 1.00 fUSD into demo v2 | 100 to 101 fUSD | 9C16E0E76D936BD82164901B10AE0F6CD082B61D4E74142D250CD8095C8B4F67 |
 | QoreX sends 0.01 QOR to demo v2 | arrived | D00F44FA649E73414BB8E8C65E1E71C6005D60BF519375B537C046BF8EE06740 |
+
+## App deployment (Vercel, 21 November)
+
+- Live: https://bulkhead-blush.vercel.app (production, built from branch phase-2-app, commit b9f2461)
+- Project: Vercel "bulkhead", root directory app/, Build Output API: static Vite build plus five esbuild-bundled functions (/api/rest, /api/relay, /api/requests, /api/agent, /api/agent-key).
+- Approval queue: Vercel Blob store "bulkhead-queue" (ciphertext only). Checked live: a request written in one call was read back and settled in another.
+- Checked live: the site loads the demo account from the chain with no errors; gateway reads work, paths outside the allowlist are refused (403); the queue refuses anything that isn't a QoreSeal envelope (400).
+- Secrets are not set yet, so /api/relay and /api/agent* answer 503 "not configured". The owner adds them in the Vercel dashboard: RELAYER_MNEMONIC, AGENT_OWNER_MNEMONIC, AGENT_KEY_HEX, SERV_API_KEY.

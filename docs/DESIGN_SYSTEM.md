@@ -287,6 +287,13 @@ Each screen lists its one job, what it shows first, its one main action, and the
   - Break-glass is reachable from the phone at rest, behind the two-step sheet.
   - Requests expire visibly, with the time left.
 
+### 16.8b Lost phone (Account settings and the phone)
+
+- Laptop, Account settings: "Lost your phone?" Set up Bulkhead on a new phone, then enter its address. The account seals at once and the switch waits about three days (the account's safetyDelay, never shorter than its widening delay). The laptop can stop it; after the wait anyone can finish it, and only if the new phone's key is registered and proven.
+- Old phone, if it still exists: a full-width alert "Someone is replacing this phone" with "Stop it, this phone stays", signed with the Safety key. A thief with the laptop alone gets a sealed account and a long, visible wait.
+- After the switch the account stays sealed; the new phone unseals it with a normal widening.
+- "I didn't ask for this" on the phone refuses the request and seals the account from the phone (sealWithApproval).
+
 ### 16.9 Attack replay
 
 - Job: prove the walls hold, with real transactions.

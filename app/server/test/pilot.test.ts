@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { plan, planRequest, isQuiet, validate, sameAsChain, untilBlock, BadPilot, type PilotSettings, type Ceiling } from "../pilot.js";
+import { plan, planRequest, isQuiet, validate, sameAsChain, untilBlock, isTightening, BadPilot, type PilotSettings, type Ceiling } from "../pilot.js";
 
 const C: Ceiling = { perTx: 5_000_000n, period: 15_000_000n };
 const S: PilotSettings = { tzOffsetMin: 60, quietStart: "00:00", quietEnd: "07:00", restPerTx: 400_000n, restPeriod: 400_000n, dayPerTx: 5_000_000n, dayPeriod: 15_000_000n };
@@ -57,4 +57,25 @@ test("sameAsChain ignores small drift in the raise end", () => {
   assert.equal(sameAsChain(t, { ...t, perTx: 1n }, B), false);
   const n = plan(S, C, at(3), B, P);
   assert.equal(sameAsChain(n, { perTx: 9n, period: 9n, until: B - 5n, restPerTx: n.restPerTx, restPeriod: n.restPeriod }, B), true);
+});
+
+test("schedule changes: only a stricter schedule counts as tightening", () => {
+  assert.equal(isTightening(null, S), true, "the first save");
+  assert.equal(isTightening(S, S), true, "no change");
+  assert.equal(isTightening(S, { ...S, quietStart: "23:00", quietEnd: "08:00" }), true, "a longer window across midnight");
+  assert.equal(isTightening(S, { ...S, quietEnd: "09:00" }), true, "a longer window");
+  assert.equal(isTightening(S, { ...S, quietStart: "02:00", quietEnd: "09:00" }), false, "a window that shifts");
+  assert.equal(isTightening(S, { ...S, quietEnd: "06:00" }), false, "shorter by an hour");
+  const wrap = { ...S, quietStart: "22:00", quietEnd: "06:00" };
+  assert.equal(isTightening(wrap, { ...wrap, quietStart: "21:30", quietEnd: "06:30" }), true, "a wrap-around superset");
+  assert.equal(isTightening(wrap, { ...wrap, quietStart: "23:00", quietEnd: "06:00" }), false, "a wrap-around window that starts later");
+  assert.equal(isTightening(S, { ...S, quietStart: "08:00", quietEnd: "07:00" }), true, "a 23-hour window still covers the old one");
+  assert.equal(isTightening(S, { ...S, quietStart: "07:00", quietEnd: "23:00" }), false, "the window moved to the daytime");
+  assert.equal(isTightening(S, { ...S, restPerTx: 500_000n }), false, "a raised night wall");
+  assert.equal(isTightening(S, { ...S, restPeriod: 500_000n }), false, "a raised night daily wall");
+  assert.equal(isTightening(S, { ...S, dayPerTx: 4_000_000n, dayPeriod: 10_000_000n }), true, "a lowered daytime wall");
+  assert.equal(isTightening(S, { ...S, dayPeriod: 16_000_000n }), false, "a raised daytime daily wall");
+  assert.equal(isTightening(S, { ...S, restPerTx: 100_000n }), true, "a lowered night wall");
+  assert.equal(isTightening(S, { ...S, tzOffsetMin: 0 }), false, "a time zone change");
+  assert.equal(isTightening(S, { ...S, tzOffsetMin: 0, quietStart: "23:00", quietEnd: "06:00" }), false, "a time zone change, even if it lines up");
 });

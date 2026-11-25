@@ -10,6 +10,7 @@ import { TOKENS, EXPLORER_TX } from "../chain/config";
 import { actions } from "../chain/actions";
 import { getPilot, changePilot, tickPilot, type PilotView, type PilotSettingsJson } from "../chain/pilot";
 import { isUnlocked } from "../chain/wallet";
+import { scheduleText } from "../chain/requests";
 import { ActionButton } from "../ui/Button";
 import { PendingPlate } from "../ui/Pending";
 import { UnlockPlate } from "../ui/Unlock";
@@ -113,6 +114,14 @@ function Schedule({ v, onDone }: { v: PilotView; onDone: () => void }) {
       const change: { kind: string } & PilotSettingsJson = { kind: "settings", tzOffsetMin: -new Date().getTimezoneOffset(), quietStart, quietEnd,
         restPerTx: toBase(rest, "the night wall"), restPeriod: toBase(restDay, "the night daily wall"), dayPerTx: toBase(day, "the daytime wall"), dayPeriod: toBase(dayDay, "the daytime daily wall") };
       const r = await changePilot(myAddr(), change);
+      if (r.needsPhone) {
+        // Looser than now: the laptop alone can't do it. Send it to the phone to approve.
+        const { kind: _k, ...settings } = change;
+        await actions.requestWiden(myAddr(), { kind: "PilotSchedule", settings }, () => undefined);
+        setMsg("Sent to your phone. Approve it there to loosen your schedule.");
+        onDone();
+        return;
+      }
       setMsg(r.changed ? `Saved, and the pilot updated your walls. ${r.reason}` : `Saved. ${r.reason}`);
       onDone();
     } catch (x) { setMsg((x as Error).message); } finally { setBusy(false); }
@@ -132,6 +141,8 @@ function Schedule({ v, onDone }: { v: PilotView; onDone: () => void }) {
         <div className="field"><label htmlFor="w-day">Daytime: per payment</label><input id="w-day" className="field-input" inputMode="decimal" value={day} onChange={(e) => setDay(e.target.value)} /></div>
         <div className="field"><label htmlFor="w-dayd">Daytime: per day</label><input id="w-dayd" className="field-input" inputMode="decimal" value={dayDay} onChange={(e) => setDayDay(e.target.value)} /></div>
       </div>
+      {v.pendingSettings && <p className="muted" style={{ fontSize: 14, margin: 0 }}>Waiting for your phone: {scheduleText(v.pendingSettings.settings)}</p>}
+      <p className="muted" style={{ fontSize: 14, margin: 0 }}>Shorter quiet hours, higher walls or a new time zone need your phone. Stricter changes save at once.</p>
       <p className="muted" style={{ fontSize: 14, margin: 0 }}>Your phone signed {money(v.chain.ceiling.perTx)} per payment and {money(v.chain.ceiling.period)} a day. The pilot can't go above that.</p>
       {msg && <p role="status">{msg}</p>}
       <button className="btn btn-primary" type="submit" disabled={busy} style={{ justifySelf: "start" }}>{busy ? "Saving…" : "Save"}</button>

@@ -2,12 +2,15 @@
 import { privateKeyToAccount } from "viem/accounts";
 import { current } from "./wallet";
 
-export interface PilotSettingsJson { tzOffsetMin: number; quietStart: string; quietEnd: string; restPerTx: string; restPeriod: string; dayPerTx: string; dayPeriod: string }
+import type { PilotSettingsJson } from "./pilotSchedule";
+export type { PilotSettingsJson };
 export interface PilotLog { at: number; kind: "schedule" | "request" | "refused" | "settings"; reason: string; txHash?: string; blastRadius?: string }
 export interface PilotView {
   account: string; pilotAddress: string | null; added: boolean; saved: boolean; quietNow: boolean; settings: PilotSettingsJson;
   chain: { block: string; ceiling: { perTx: string; period: string }; effective: { perTx: string; period: string }; blastRadius: string; sealed: boolean; live: { until: string } };
   log: PilotLog[];
+  /** A looser schedule waiting for the phone. */
+  pendingSettings: { settings: PilotSettingsJson; at: number } | null;
 }
 
 const msg = (account: string, change: object, at: number) => `Bulkhead pilot change\naccount: ${account.toLowerCase()}\nat: ${at}\n${JSON.stringify(change)}`;
@@ -22,7 +25,7 @@ async function json<T>(r: Response): Promise<T> {
 export const getPilot = (account: string) => fetch(`/api/pilot?account=${account}`).then((r) => json<PilotView>(r));
 export const tickPilot = (account: string) => fetch("/api/pilot?tick=1", { method: "POST", body: JSON.stringify({ account }) }).then((r) => json<{ changed: boolean; reason: string }>(r));
 
-export async function changePilot(account: string, change: object): Promise<{ ok: boolean; reason: string; changed?: boolean; read?: { amount: string; untilLocal: string } }> {
+export async function changePilot(account: string, change: object): Promise<{ ok: boolean; reason: string; changed?: boolean; needsPhone?: boolean; read?: { amount: string; untilLocal: string } }> {
   const at = Date.now();
   const signature = await privateKeyToAccount(current().privateKey as `0x${string}`).signMessage({ message: msg(account, change, at) });
   return json(await fetch("/api/pilot", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ account, at, change, signature }) }));

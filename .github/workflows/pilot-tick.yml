@@ -1,0 +1,24 @@
+# Runs the pilot every five minutes: the tripwire, then each owner's schedule.
+# Vercel crons on this plan run once a day, which is too slow for a tripwire.
+# No secrets: /api/pilot?cron=1 only follows owners' schedules and tripwires, and can only close walls
+# or open them to what each owner's schedule and phone already allow.
+name: pilot tick
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: pilot-tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Tick every account
+        run: curl -fsS -m 50 "https://bulkhead-blush.vercel.app/api/pilot?cron=1"

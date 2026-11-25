@@ -9,9 +9,9 @@ import { fmt } from "../chain/account";
 import { TOKENS, EXPLORER_TX } from "../chain/config";
 import { actions } from "../chain/actions";
 import { getPilot, changePilot, tickPilot, type PilotView, type PilotSettingsJson } from "../chain/pilot";
-import { readPending, finishPending, minutesUntil, type Pending } from "../chain/pending";
 import { isUnlocked } from "../chain/wallet";
 import { ActionButton } from "../ui/Button";
+import { PendingPlate } from "../ui/Pending";
 import { UnlockPlate } from "../ui/Unlock";
 import { ExposureChart } from "../ui/ExposureChart";
 import "./agent.css";
@@ -59,7 +59,7 @@ export function PilotScreen() {
       )}
 
       {v && !v.added && <AddPilot v={v} />}
-      <PendingPlate onDone={() => void load()} />
+      <PendingPlate account={myAddr()} onDone={() => void load()} />
 
       {!unlocked && <UnlockPlate why="Changing the pilot's schedule or asking for more is signed by your laptop key." onUnlocked={() => setTick((n) => n + 1)} />}
       {v && unlocked && <Schedule v={v} onDone={() => void load()} />}
@@ -97,31 +97,6 @@ function AddPilot({ v }: { v: PilotView }) {
         await actions.requestWiden(myAddr(), { kind: "AddPilot", pilot: v.pilotAddress as Address }, step);
         return "Sent to your phone";
       }}>Add the pilot from my phone</ActionButton>
-    </section>
-  );
-}
-
-/** Widenings the phone approved, waiting for the delay. Anyone may finish them when due. */
-export function PendingPlate({ onDone }: { onDone?: () => void }) {
-  const [list, setList] = useState<Pending[] | null>(null);
-  const load = useCallback(() => readPending(myAddr()).then(setList).catch(() => setList([])), []);
-  useEffect(() => { void load(); const t = setInterval(() => void load(), 30_000); return () => clearInterval(t); }, [load]);
-  const live = (list ?? []).filter((p) => !p.cancelled);
-  if (live.length === 0) return null;
-  return (
-    <section className="plate agent-add" aria-label="Changes waiting">
-      <h2 style={{ color: "var(--on-plate)" }}>Waiting for the delay</h2>
-      <ul className="decisions">
-        {live.map((p) => {
-          const m = minutesUntil(p);
-          return (
-            <li key={p.id} className="decision">
-              <p className="reason">{p.name}: approved by your phone. {m > 0 ? `Ready in about ${m} minutes.` : "Ready now."}</p>
-              {m === 0 && <ActionButton kind="primary" run={async (step) => { step("Finishing on QoreChain", 0.6); await finishPending(myAddr(), p); await load(); onDone?.(); return "Done"; }}>Finish it</ActionButton>}
-            </li>
-          );
-        })}
-      </ul>
     </section>
   );
 }

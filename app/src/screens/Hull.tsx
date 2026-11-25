@@ -6,7 +6,8 @@ import { TOKENS } from "../chain/config";
 import { myAccount } from "../chain/me";
 import { HullRow, type CompartmentView } from "../ui/Hull";
 import { ExposureChart } from "../ui/ExposureChart";
-import { usePilot, PendingPlate } from "./Pilot";
+import { usePilot } from "./Pilot";
+import { PendingPlate } from "../ui/Pending";
 
 const T = TOKENS.fUSD;
 
@@ -55,7 +56,7 @@ export function HullScreen() {
         <span className="big-number" style={{ color: "var(--lime)" }}>{fmt(acct.asset.blastRadius, T.decimals, T.places)} <small style={{ fontSize: 20 }}>{T.symbol}</small></span>
       </div>
       <PilotSummary />
-      <PendingPlate />
+      <PendingPlate account={acct.address} />
       <HullRow compartments={comps} />
       {err && <p role="alert" style={{ color: "var(--rust)" }}>{err}</p>}
     </>

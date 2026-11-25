@@ -75,8 +75,11 @@ export async function readHistory(account: Address, fromBlock: bigint): Promise<
   const head = await pub.getBlockNumber();
   const items: HistoryItem[] = [];
   const everyday = ((await pub.readContract({ address: account, abi: accountAbi, functionName: "everyday" }).catch(() => "")) as string).toLowerCase();
-  for (let start = fromBlock; start <= head; start += CHUNK) {
-    const end = start + CHUNK - 1n > head ? head : start + CHUNK - 1n;
+  // Chunks are read a few at a time in parallel: an account a few weeks old spans dozens of chunks.
+  const ranges: [bigint, bigint][] = [];
+  for (let start = fromBlock; start <= head; start += CHUNK) ranges.push([start, start + CHUNK - 1n > head ? head : start + CHUNK - 1n]);
+  const readChunk = async ([start, end]: [bigint, bigint]) => {
+    const out: HistoryItem[] = [];
     const [own, incoming] = await Promise.all([
       pub.getLogs({ address: account, fromBlock: start, toBlock: end }),
       pub.getLogs({ address: TOKENS.fUSD.address as Address, event: TRANSFER, args: { to: account }, fromBlock: start, toBlock: end }),
@@ -90,10 +93,12 @@ export async function readHistory(account: Address, fromBlock: bigint): Promise<
     const explained = new Set(own.filter((l) => ["tripped", "phone-change", "evacuated"].includes(describe(l, ctx)?.kind ?? "")).map((l) => l.transactionHash));
     for (const l of own) {
       const d = describe(l, ctx);
-      if (d && !(d.kind === "sealed" && explained.has(l.transactionHash))) items.push(d);
+      if (d && !(d.kind === "sealed" && explained.has(l.transactionHash))) out.push(d);
     }
-    for (const l of incoming) items.push({ kind: "received", block: l.blockNumber!, txHash: l.transactionHash!, title: `Received ${money(TOKENS.fUSD.address, l.args.value as bigint)}`, detail: `From ${short(l.args.from as string)}.`, attention: false });
-  }
+    for (const l of incoming) out.push({ kind: "received", block: l.blockNumber!, txHash: l.transactionHash!, title: `Received ${money(TOKENS.fUSD.address, l.args.value as bigint)}`, detail: `From ${short(l.args.from as string)}.`, attention: false });
+    return out;
+  };
+  for (let i = 0; i < ranges.length; i += PARALLEL) for (const chunk of await Promise.all(ranges.slice(i, i + PARALLEL).map(readChunk))) items.push(...chunk);
   items.push(...(await readDeposits(account)));
   return items.sort((x, y) => Number(y.block - x.block));
 }
@@ -133,7 +138,18 @@ async function readDeposits(account: Address): Promise<HistoryItem[]> {
 }
 
 /** Finds the block an account was created at, so history doesn't scan the whole chain. */
+const PARALLEL = 6;
+const createdKey = (a: Address) => `bh-created-${a.toLowerCase()}`;   // shared with pending.ts
+
+/** The block the account was created in. Cached in this browser: it never changes. */
 export async function creationBlock(account: Address, txHash?: `0x${string}`): Promise<bigint> {
+  try { const v = localStorage.getItem(createdKey(account)); if (v && /^\d+$/.test(v)) return BigInt(v); } catch { /* no storage */ }
+  const b = await findCreationBlock(account, txHash);
+  try { localStorage.setItem(createdKey(account), b.toString()); } catch { /* no storage */ }
+  return b;
+}
+
+async function findCreationBlock(account: Address, txHash?: `0x${string}`): Promise<bigint> {
   if (txHash) return (await pub.getTransactionReceipt({ hash: txHash })).blockNumber;
   // Binary search for the first block with code at the address.
   let lo = 0n, hi = await pub.getBlockNumber();

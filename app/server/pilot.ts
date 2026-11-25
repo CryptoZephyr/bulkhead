@@ -46,6 +46,24 @@ export function isQuiet(s: PilotSettings, now: number): boolean {
   return a < b ? m >= a && m < b : m >= a || m < b;
 }
 
+/** Whether a local minute of the day (0..1439) is inside the quiet window. Wraps midnight. */
+const quietMinute = (s: PilotSettings, m: number) => { const a = mins(s.quietStart), b = mins(s.quietEnd); return a < b ? m >= a && m < b : m >= a || m < b; };
+
+/**
+ * Whether a schedule change only makes the pilot stricter, so the laptop key alone may make it.
+ * Tightening: the same time zone, a quiet window that covers every minute the old one did, and
+ * each wall at or below the old one. The first ever schedule is tightening too: without one the
+ * pilot does nothing and the walls sit at the phone-signed policy all day.
+ * Anything else loosens the schedule and needs the phone.
+ */
+export function isTightening(oldS: PilotSettings | null, newS: PilotSettings): boolean {
+  if (!oldS) return true;
+  if (oldS.tzOffsetMin !== newS.tzOffsetMin) return false;
+  if (newS.restPerTx > oldS.restPerTx || newS.restPeriod > oldS.restPeriod || newS.dayPerTx > oldS.dayPerTx || newS.dayPeriod > oldS.dayPeriod) return false;
+  for (let m = 0; m < 1440; m++) if (quietMinute(oldS, m) && !quietMinute(newS, m)) return false;
+  return true;
+}
+
 /** Milliseconds until quiet hours next start. */
 export function msToQuiet(s: PilotSettings, now: number): number {
   const m = localMinute(now, s.tzOffsetMin), a = mins(s.quietStart);

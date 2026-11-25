@@ -12,6 +12,9 @@ export function PendingPlate({ account, onDone }: { account: Address; onDone?: (
   const [items, setItems] = useState<Pending[] | null>(null);
   const [failed, setFailed] = useState(false);
   const tried = useRef<Set<string>>(new Set());
+  // Held in a ref so a parent passing a new callback each render doesn't restart the lookup.
+  const done = useRef(onDone);
+  done.current = onDone;
 
   const load = useCallback(async () => {
     try {
@@ -21,10 +24,10 @@ export function PendingPlate({ account, onDone }: { account: Address; onDone?: (
       const due = got.find((p) => p.state === "ready" && !tried.current.has(p.id));
       if (due) {
         tried.current.add(due.id);
-        try { await finishPending(account, due); onDone?.(); await load(); } catch { /* the button is still there */ }
+        try { await finishPending(account, due); done.current?.(); await load(); } catch { /* the button is still there */ }
       }
     } catch { setFailed(true); }
-  }, [account, onDone]);
+  }, [account]);
 
   useEffect(() => {
     void load();
@@ -47,7 +50,7 @@ export function PendingPlate({ account, onDone }: { account: Address; onDone?: (
               {p.state === "ready" && (
                 <>
                   <p className="reason">{p.name}: approved by your phone. Ready now.</p>
-                  <ActionButton kind="primary" run={async (step) => { step("Finishing on QoreChain", 0.6); await finishPending(account, p); await load(); onDone?.(); return "Done"; }}>Finish it</ActionButton>
+                  <ActionButton kind="primary" run={async (step) => { step("Finishing on QoreChain", 0.6); await finishPending(account, p); await load(); done.current?.(); return "Done"; }}>Finish it</ActionButton>
                 </>
               )}
               {p.state === "cancelled" && <p className="reason">{p.name}: cancelled. {p.reason}. Ask your phone again if you still want it.</p>}

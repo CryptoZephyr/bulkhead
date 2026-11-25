@@ -4,57 +4,7 @@
 
 [Open the app](https://bulkhead-blush.vercel.app) · [Phone view](https://bulkhead-blush.vercel.app/#/phone) · [Demo video](VIDEO_LINK_TODO) · [Contracts on testnet](#deployments)
 
-## Judges, start here
-
-Entry for QoreChain "Build Before Q-Day", Post-Quantum AI Agents track. Submissions close 2 December 2026, 23:59 UTC.
-
-| Required item | Where it is |
-| :--- | :--- |
-| Public repo | This repository, [CryptoZephyr/bulkhead](https://github.com/CryptoZephyr/bulkhead). `main` holds reviewed work, each phase was built on its own branch and squash merged |
-| README | This file |
-| Featured image | [`docs/brand/mark/bulkhead-mark-frame-1920x1080.png`](docs/brand/mark/bulkhead-mark-frame-1920x1080.png) |
-| Demo video, 3 minutes or less | [Demo video](VIDEO_LINK_TODO) |
-| Testnet addresses used | [Deployments](#deployments), with explorer links |
-| Live app | [bulkhead-blush.vercel.app](https://bulkhead-blush.vercel.app), phone view at [`/#/phone`](https://bulkhead-blush.vercel.app/#/phone) |
-| Track | Post-Quantum AI Agents. The phone key is ML-DSA-87, and two AI agents (the pilot and the bill agent) run inside chain-enforced walls |
-
-### Try it in 10 minutes
-
-You need a laptop browser, a phone browser and a little QOR. The live app runs on QoreChain testnet `qorechain-diana`. Nothing here is real money.
-
-1. On the laptop, open [bulkhead-blush.vercel.app](https://bulkhead-blush.vercel.app) and press **Create my Bulkhead**.
-2. Choose a password of at least 10 characters. It encrypts your laptop key in the browser. Bulkhead never stores it.
-3. Send a little QOR to the laptop address that setup shows. The laptop key pays its own fees. QoreX works, and so does any wallet that can send QOR on the testnet.
-4. On the phone, open [`/#/phone`](https://bulkhead-blush.vercel.app/#/phone) and create your Safety key. This is an ML-DSA-87 key that lives on the phone. Register it when the page asks. It needs a little QOR for gas.
-5. Pair the two with the Bulkhead Handshake. Scan the QR on the laptop with the phone. Both screens then show four words. Confirm they match.
-6. Set your walls: how much you spend in a day, and how much you keep. Bulkhead turns that into caps.
-7. Approve the account on the phone. The live relayer deploys it. Nothing moves yet.
-8. Fund the account with fUSD from QoreX.
-9. Open **Pilot** on the laptop, set your quiet hours and watch the wall close. Try **Pay** with an amount over your cap and see what the chain does.
-
-Or skip setup: the live demo account is [`0xB5a69255…0Df6`](https://explore.qore.network/address/0xB5a69255fE41c9ab4D9A52478A22966E3ddE0Df6). It is a v4 account made with the owner's phone on 25 November.
-
-## Screenshots
-
-Captured from the live app on QoreChain testnet, with real data from a demo account.
-
-<table>
-<tr>
-<td align="center"><img src="docs/screenshots/hull.png" width="420" alt="Hull screen"><br><sub>Hull: the most anyone could take right now (0.25 fUSD), the pilot's blast radius through the day, and the compartments.</sub></td>
-<td align="center"><img src="docs/screenshots/pilot.png" width="420" alt="Pilot screen"><br><sub>Pilot: quiet hours and walls, capped by what the phone signed, with a log of what the pilot did.</sub></td>
-</tr>
-<tr>
-<td align="center"><img src="docs/screenshots/bills.png" width="420" alt="Bills screen"><br><sub>Bills: the bill agent pays from its own capped account (60.00 fUSD, 25.00 a day).</sub></td>
-<td align="center"><img src="docs/screenshots/landing.png" width="420" alt="Landing page"><br><sub>Landing: compartments and walls, and the two-device split.</sub></td>
-</tr>
-</table>
-
-<table>
-<tr>
-<td align="center"><img src="docs/screenshots/phone-safety-key.png" width="220" alt="Phone: create your Safety key"><br><sub>Phone: create the Safety key.</sub></td>
-<td align="center"><img src="docs/screenshots/phone-landing.png" width="220" alt="Phone landing page"><br><sub>Phone: landing page.</sub></td>
-</tr>
-</table>
+<img src="docs/screenshots/hull.png" alt="Bulkhead Hull screen: 0.25 fUSD at risk during quiet hours, against a 2.50 fixed cap" width="820">
 
 ## The problem
 
@@ -246,6 +196,44 @@ sequenceDiagram
     Pilot-->>Thief: Loosening needs the phone, held as pending
     Note over Pilot,Account: In the morning the pilot raises until the next quiet hours, then the raise ends by itself
 ```
+
+## Screenshots
+
+Captured from the live app on QoreChain testnet, with real data from a demo account.
+
+<table>
+<tr>
+<td align="center"><img src="docs/screenshots/hull.png" width="420" alt="Hull screen"><br><sub>Hull: the most anyone could take right now (0.25 fUSD), the pilot's blast radius through the day, and the compartments.</sub></td>
+<td align="center"><img src="docs/screenshots/pilot.png" width="420" alt="Pilot screen"><br><sub>Pilot: quiet hours and walls, capped by what the phone signed, with a log of what the pilot did.</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/bills.png" width="420" alt="Bills screen"><br><sub>Bills: the bill agent pays from its own capped account (60.00 fUSD, 25.00 a day).</sub></td>
+<td align="center"><img src="docs/screenshots/landing.png" width="420" alt="Landing page"><br><sub>Landing: compartments and walls, and the two-device split.</sub></td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td align="center"><img src="docs/screenshots/phone-safety-key.png" width="220" alt="Phone: create your Safety key"><br><sub>Phone: create the Safety key.</sub></td>
+<td align="center"><img src="docs/screenshots/phone-landing.png" width="220" alt="Phone landing page"><br><sub>Phone: landing page.</sub></td>
+</tr>
+</table>
+
+## Try it
+
+You need a laptop browser, a phone browser and a little QOR. The live app runs on QoreChain testnet `qorechain-diana`. Nothing here is real money.
+
+1. On the laptop, open [bulkhead-blush.vercel.app](https://bulkhead-blush.vercel.app) and press **Create my Bulkhead**.
+2. Choose a password of at least 10 characters. It encrypts your laptop key in the browser. Bulkhead never stores it.
+3. Send a little QOR to the laptop address that setup shows. The laptop key pays its own fees. QoreX works, and so does any wallet that can send QOR on the testnet.
+4. On the phone, open [`/#/phone`](https://bulkhead-blush.vercel.app/#/phone) and create your Safety key. This is an ML-DSA-87 key that lives on the phone. Register it when the page asks. It needs a little QOR for gas.
+5. Pair the two with the Bulkhead Handshake. Scan the QR on the laptop with the phone. Both screens then show four words. Confirm they match.
+6. Set your walls: how much you spend in a day, and how much you keep. Bulkhead turns that into caps.
+7. Approve the account on the phone. The live relayer deploys it. Nothing moves yet.
+8. Fund the account with fUSD from QoreX.
+9. Open **Pilot** on the laptop, set your quiet hours and watch the wall close. Try **Pay** with an amount over your cap and see what the chain does.
+
+A live demo account to inspect: [`0xB5a69255…0Df6`](https://explore.qore.network/address/0xB5a69255fE41c9ab4D9A52478A22966E3ddE0Df6). It is a v4 account, made with a real phone on 25 November.
 
 ## Proof on testnet
 

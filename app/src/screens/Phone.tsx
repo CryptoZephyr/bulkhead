@@ -19,6 +19,7 @@ import { ActionButton, type Step } from "../ui/Button";
 import { Mark } from "../ui/Mark";
 import { NetworkReadout } from "../ui/Shell";
 import { HullRow } from "../ui/Hull";
+import { PendingPlate } from "../ui/Pending";
 import { StatusMark } from "../ui/Status";
 import { compartmentsFrom } from "./Hull";
 import "./phone.css";
@@ -623,6 +624,7 @@ function Unlocked({ safety }: { safety: SafetyKey }) {
         ) : (
           <>
             {inboxErr && <p role="alert" className="flood-line">{inboxErr}</p>}
+            {known && <PendingPlate account={known} />}
             <AtRest account={known} safety={safety} />
           </>
         )

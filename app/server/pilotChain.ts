@@ -1,11 +1,11 @@
 // The pilot's hands on chain: read an account's ceiling and live walls, and send setLive with the
 // pilot key through a one-transaction window scoped to that account. Every outcome is read back.
-import { createWalletClient, http, type Address, type Hex } from "viem";
+import { createWalletClient, http, type AbiEvent, type Address, type Hex, type Log } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { deriveUnifiedAccount, type UnifiedAccount } from "@qorechain/sdk";
 import accountAbi from "../src/chain/abi/BulkheadAccount.json" with { type: "json" };
 import { pub, openWindowFor, EVM_RPC } from "./relayer.js";
-import type { Ceiling, LiveTarget } from "./pilot.js";
+import type { Ceiling, LiveTarget, TripEvent } from "./pilot.js";
 
 export const FUSD = "0x97143b771d34ddb9130b807b135ae675a5a963ca" as Address;
 const chain = { id: 9800, name: "QoreChain testnet", nativeCurrency: { name: "QOR", symbol: "QOR", decimals: 18 }, rpcUrls: { default: { http: [EVM_RPC] } } } as const;
@@ -31,6 +31,31 @@ export async function readChain(account: Address): Promise<ChainView> {
   const p = policy as bigint[], l = live as bigint[], e = eff as bigint[];
   return { block, periodBlocks: periodBlocks as bigint, pilot: pilot as Address, ceiling: { perTx: p[0], period: p[1] }, floor: p[2], liveOn: liveOn as boolean,
     live: { perTx: l[0], period: l[1], until: l[2], restPerTx: l[3], restPeriod: l[4] }, effective: { perTx: e[0], period: e[1] }, blastRadius: blast as bigint, sealed: sealed as boolean };
+}
+
+const SPENT = accountAbi.find((x) => x.type === "event" && x.name === "Spent") as AbiEvent;
+const HELD = accountAbi.find((x) => x.type === "event" && x.name === "HeldByPilot") as AbiEvent;
+/** getLogs is asked for at most this many blocks at a time. */
+export const LOG_CHUNK = 5_000n;
+
+/**
+ * The account's Spent and HeldByPilot events in [from, to], with block times. Reads in chunks of
+ * LOG_CHUNK blocks and fetches each distinct block's time once.
+ */
+export async function readTripEvents(account: Address, from: bigint, to: bigint): Promise<TripEvent[]> {
+  const logs: Log[] = [];
+  for (let a = from; a <= to; a += LOG_CHUNK) {
+    const b = a + LOG_CHUNK - 1n < to ? a + LOG_CHUNK - 1n : to;
+    logs.push(...(await pub.getLogs({ address: account, events: [SPENT, HELD], fromBlock: a, toBlock: b })));
+  }
+  const blocks = [...new Set(logs.map((l) => l.blockNumber as bigint))];
+  const times = new Map<bigint, number>();
+  await Promise.all(blocks.map(async (n) => times.set(n, Number((await pub.getBlock({ blockNumber: n })).timestamp) * 1000)));
+  return logs.map((l) => {
+    const { eventName, args } = l as unknown as { eventName: string; args: { amount: bigint; withApproval?: boolean } };
+    const base = { at: times.get(l.blockNumber as bigint)!, block: l.blockNumber as bigint, amount: args.amount, txHash: l.transactionHash ?? undefined };
+    return eventName === "HeldByPilot" ? { kind: "HeldByPilot" as const, ...base } : { kind: "Spent" as const, ...base, withApproval: !!args.withApproval };
+  });
 }
 
 let key: UnifiedAccount | null = null;

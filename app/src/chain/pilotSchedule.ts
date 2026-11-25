@@ -31,3 +31,17 @@ export function pilotScheduleDigest(account: Address, s: PilotSettingsJson, nonc
 /** The 32 digest bytes, which are what the ML-DSA-87 key signs. */
 export const pilotScheduleDigestBytes = (account: Address, s: PilotSettingsJson, nonce: bigint, deadline: bigint): Uint8Array =>
   hexToBytes(pilotScheduleDigest(account, s, nonce, deadline));
+
+// The phone reopens a wall the pilot's tripwire closed. The digest is bound to that one trip by its time.
+export const PILOT_REOPEN_DOMAIN = "bulkhead-pilot-reopen-v1";
+
+/** keccak256(abi.encode("bulkhead-pilot-reopen-v1", 9800, account, keccak256(utf8(trippedAt as a decimal string)), nonce, deadline)). */
+export function pilotReopenDigest(account: Address, trippedAt: number, nonce: bigint, deadline: bigint): Hex {
+  return keccak256(encodeAbiParameters(
+    [{ type: "string" }, { type: "uint256" }, { type: "address" }, { type: "bytes32" }, { type: "uint256" }, { type: "uint256" }],
+    [PILOT_REOPEN_DOMAIN, PILOT_SCHEDULE_CHAIN_ID, account, keccak256(stringToHex(String(trippedAt))), nonce, deadline],
+  ));
+}
+
+export const pilotReopenDigestBytes = (account: Address, trippedAt: number, nonce: bigint, deadline: bigint): Uint8Array =>
+  hexToBytes(pilotReopenDigest(account, trippedAt, nonce, deadline));

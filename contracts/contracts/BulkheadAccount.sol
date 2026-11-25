@@ -108,6 +108,7 @@ contract BulkheadAccount {
     event SafetyChangeCancelled(address indexed next);
     event SafetyChanged(address indexed previous, address indexed next);
     event LiveSet(address indexed by, address indexed asset, uint256 perTx, uint256 period, uint256 until, uint256 restPerTx, uint256 restPeriod);
+    event PilotSet(address indexed pilot);
     event HeldByPilot(address indexed asset, address indexed to, uint256 amount);
 
     // ------------------------------------------------------------------ errors
@@ -134,6 +135,7 @@ contract BulkheadAccount {
     error NotPilot();
     error AbovePolicy();
     error TooFarAhead();
+    error BadPilot();
 
     // ------------------------------------------------------------------ modifiers
 
@@ -161,6 +163,7 @@ contract BulkheadAccount {
         address[] assets;
         Policy[] policies;
         address[] payees;          // non-empty turns the payee list on
+        address pilot;             // may be zero; the phone signs it with everything else at creation
     }
 
     constructor(Init memory i) {
@@ -171,6 +174,7 @@ contract BulkheadAccount {
         loosenDelay = i.loosenDelay;
         safetyDelay = i.safetyDelay;
         recovery = i.recovery;
+        pilot = i.pilot;
         for (uint256 k = 0; k < i.assets.length; k++) policy[i.assets[k]] = i.policies[k];
         if (i.payees.length > 0) {
             payeeListOn = true;
@@ -292,6 +296,16 @@ contract BulkheadAccount {
         emit Sealed(safety);
     }
 
+    /// @notice Set or replace the pilot, signed by the Safety key, effective at once. The pilot can only
+    ///         move the live walls between zero and the phone-signed policy, so adding one widens
+    ///         nothing and needs no delay. It can never be the laptop key: the laptop may only lower.
+    function setPilotWithApproval(address next, uint256 nonce, uint256 deadline, bytes calldata sig) external {
+        if (next == everyday) revert BadPilot();
+        _checkSafety(4, abi.encode(next), nonce, deadline, sig);
+        pilot = next;
+        emit PilotSet(next);
+    }
+
     // ------------------------------------------------------------------ lost phone
 
     /// @notice Lost phone: the laptop proposes a new phone. The account seals at once and stays sealed;
@@ -386,7 +400,7 @@ contract BulkheadAccount {
     function setLive(address asset, Live calldata l) external {
         if (msg.sender != pilot && msg.sender != everyday) revert NotPilot();
         Policy memory p = policy[asset];
-        if (msg.sender == everyday && msg.sender != pilot) {
+        if (msg.sender == everyday) {
             // The laptop may only lower the live walls. Raising needs the pilot, so a stolen laptop
             // key alone can't reopen a wall the pilot closed for the night.
             (uint256 tx_, uint256 cap) = effectiveCaps(asset);
@@ -462,7 +476,10 @@ contract BulkheadAccount {
             if (!IBulkheadFactory(factory).isAccount(r_) || r_ == address(this)) revert RecoveryNotAccount();
             recovery = r_;
         } else if (action == Loosen.SetPilot) {
-            pilot = abi.decode(data, (address));
+            address p_ = abi.decode(data, (address));
+            if (p_ == everyday) revert BadPilot();
+            pilot = p_;
+            emit PilotSet(p_);
         }
         emit LoosenExecuted(id, action);
     }

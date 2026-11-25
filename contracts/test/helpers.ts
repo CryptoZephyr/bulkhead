@@ -36,7 +36,7 @@ export async function approve(env: Env, message: Hex): Promise<Hex> {
 
 export const defaultPolicy: Policy = { perTxCap: parseEther("1"), periodCap: parseEther("3"), floor: parseEther("5") };
 
-export async function deployAccount(env: Env, over: Partial<{ recovery: Address; payees: Address[]; policy: Policy; assets: Address[]; delay: bigint }> = {}) {
+export async function deployAccount(env: Env, over: Partial<{ recovery: Address; payees: Address[]; policy: Policy; assets: Address[]; delay: bigint; pilot: Address }> = {}) {
   const assets = over.assets ?? [NATIVE];
   const init = {
     everyday: env.everyday.account.address,
@@ -48,6 +48,7 @@ export async function deployAccount(env: Env, over: Partial<{ recovery: Address;
     assets,
     policies: assets.map(() => over.policy ?? defaultPolicy),
     payees: over.payees ?? [],
+    pilot: over.pilot ?? NATIVE,
   };
   const salt = keccak256(toHex(`salt-${Math.random()}`));
   const d = await env.factory.read.digest([init, salt]);

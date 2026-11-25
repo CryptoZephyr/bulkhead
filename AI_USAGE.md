@@ -36,4 +36,4 @@ No external audit has been done yet. See [docs/THREAT_MODEL.md](docs/THREAT_MODE
 - Money decisions in the agent and the pilot are deterministic code with unit tests, never the model.
 - Every claim about the chain in the README and DEPLOYMENTS.md links to a real testnet transaction.
 
-The full spike record that informed the design lives in [CryptoZephyr/qorex-spike](https://github.com/CryptoZephyr/qorex-spike).
+The testnet results and red-team findings behind the design are in [docs/DEPLOYMENTS.md](docs/DEPLOYMENTS.md), each with its transaction.

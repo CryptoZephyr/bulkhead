@@ -153,3 +153,21 @@ Run against https://bulkhead-blush.vercel.app through its own APIs only (relay, 
 | "about 4 until 14:00, shopping": the model read 4 and 14:00, code opened within the ceiling | blast radius 4.00 | 0x72cf2e470b258733f133812fd60fadb1163fb816014e6fa80decad2e5ad404d2 |
 | Back to quiet hours | blast radius 0.30 | 0x9a7a337c8e6de514f66eb5ed7161fb35f8bb1a190338e2125f675d50a65896f8 |
 | Browser walk of the live site (landing, setup, pilot, hull, phone) at 1280 and 390 px | all load, no page errors, no sideways scroll | |
+
+## Contracts v4 (25 November, round 27): the pilot with no wait
+
+Adding the pilot widens nothing (it can only move the live walls inside the phone-signed policy), so v4 drops the widening delay for it. The pilot is part of the phone-signed Init at creation, and the phone can set or replace it later with setPilotWithApproval, effective at once. A pilot can never be the laptop or the phone key. Real widenings keep the delay.
+
+| Contract | Address |
+|---|---|
+| BulkheadFactory v4 (current) | 0xdd2e1ed55393db01086c5a4d829f4558094870cb |
+| Test account v4 | 0x8F8831056835ff1b88f3C46350eBFe8BC90c5bc4 |
+
+| Step | Result | Transaction |
+|---|---|---|
+| Deploy factory v4 | OK, gas 4,223,411 | 0xd62d692d08ad97fd66bbd2e03e4742adad52daf1d87f7cd024754b96ba533c67 |
+| Pilot equal to the laptop key at creation | refused, BadInit | |
+| Create account v4 with the pilot in the phone-signed Init (loosenDelay 2,500) | pilot set from block one | 0xca1c60fe0f73f450c04a53fabf254640fb790f0edc097a10a61f140f9bc6025d |
+| Pilot lowers the wall right after creation | caps 0.40 / 0.40 | 0x5053704c3b8ed01dcbc04a1e4d2c918f84ebca0fba9f7394a41cc5686579233a |
+| Forged phone signature to change the pilot | refused, BadSafetySignature | |
+| Phone replaces the pilot, effective at once (real ML-DSA-87) | production pilot set, no delay | 0xf9ae8c9dbaf8bbf6b3c716824bc980d00202a6d351b787acd44dbd9320894b11 |

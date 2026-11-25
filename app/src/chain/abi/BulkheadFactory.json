@@ -138,6 +138,11 @@
       "internalType": "address[]",
       "name": "payees",
       "type": "address[]"
+     },
+     {
+      "internalType": "address",
+      "name": "pilot",
+      "type": "address"
      }
     ],
     "internalType": "struct BulkheadAccount.Init",
@@ -231,6 +236,11 @@
       "internalType": "address[]",
       "name": "payees",
       "type": "address[]"
+     },
+     {
+      "internalType": "address",
+      "name": "pilot",
+      "type": "address"
      }
     ],
     "internalType": "struct BulkheadAccount.Init",
@@ -338,6 +348,11 @@
       "internalType": "address[]",
       "name": "payees",
       "type": "address[]"
+     },
+     {
+      "internalType": "address",
+      "name": "pilot",
+      "type": "address"
      }
     ],
     "internalType": "struct BulkheadAccount.Init",

@@ -17,7 +17,7 @@ export type Intent =
   | { kind: "AddPayee"; payee: Address }
   | { kind: "Unseal" }
   | { kind: "SetRecovery"; recovery: Address }
-  | { kind: "AddPilot"; pilot: Address }                                // widening: the pilot may raise live walls up to the policy
+  | { kind: "AddPilot"; pilot: Address }                                // immediate: the phone approves, no widening delay
   | { kind: "Spend"; asset: Address; to: Address; amount: string }   // over the walls, immediate
   | { kind: "BreakGlass"; assets: Address[] }                         // immediate
   | { kind: "Seal" }                                                  // immediate: the phone seals on its own
@@ -28,9 +28,10 @@ export type Intent =
 export interface DeployInit {
   everyday: Address; safety: Address; recovery: Address; periodBlocks: string; loosenDelay: string; safetyDelay: string;
   assets: Address[]; policies: { perTxCap: string; periodCap: string; floor: string }[]; payees: Address[];
+  pilot?: Address;   // zero or missing: no pilot yet
 }
 export function initArgs(i: DeployInit) {
-  return { ...i, periodBlocks: BigInt(i.periodBlocks), loosenDelay: BigInt(i.loosenDelay), safetyDelay: BigInt(i.safetyDelay),
+  return { ...i, pilot: (i.pilot ?? NATIVE) as Address, periodBlocks: BigInt(i.periodBlocks), loosenDelay: BigInt(i.loosenDelay), safetyDelay: BigInt(i.safetyDelay),
     policies: i.policies.map((p) => ({ perTxCap: BigInt(p.perTxCap), periodCap: BigInt(p.periodCap), floor: BigInt(p.floor) })) };
 }
 
@@ -46,7 +47,7 @@ export function encodeIntent(i: Intent): { kindId: number; data: Hex } {
     case "AddPayee": return { kindId: 16 + LOOSEN.AddPayee, data: encodeAbiParameters([{ type: "address" }], [i.payee]) };
     case "Unseal": return { kindId: 16 + LOOSEN.Unseal, data: "0x" };
     case "SetRecovery": return { kindId: 16 + LOOSEN.SetRecovery, data: encodeAbiParameters([{ type: "address" }], [i.recovery]) };
-    case "AddPilot": return { kindId: 16 + LOOSEN.SetPilot, data: encodeAbiParameters([{ type: "address" }], [i.pilot]) };
+    case "AddPilot": return { kindId: 4, data: encodeAbiParameters([{ type: "address" }], [i.pilot]) };
     case "Spend": return { kindId: 0, data: encodeAbiParameters([{ type: "address" }, { type: "address" }, { type: "uint256" }], [i.asset, i.to, BigInt(i.amount)]) };
     case "BreakGlass": return { kindId: 1, data: encodeAbiParameters([{ type: "address[]" }], [i.assets]) };
     case "Seal": return { kindId: 2, data: "0x" };
@@ -80,8 +81,8 @@ export async function describe(account: Address, i: Intent): Promise<{ title: st
     case "AddPayee": return { title: "Add an approved payee", after: i.payee, delayed: true, check: `The call adds ${i.payee} as a payee on ${short}. Nothing else.` };
     case "Unseal": return { title: "Unseal the account", now: "Sealed", after: "Open", delayed: true, check: `The call unseals ${short}. Nothing else.` };
     case "SetRecovery": return { title: "Change the recovery account", after: i.recovery, delayed: true, check: `The call sets the recovery account of ${short}. Nothing else.` };
-    case "AddPilot": return { title: "Add the pilot", now: "Your walls stay where you set them all day", after: `The pilot ${i.pilot} keeps them low outside your hours. It can never go above the walls you signed, and only your laptop or phone can remove it.`, delayed: true,
-      check: `The call lets ${i.pilot} move the live walls of ${short} between zero and your signed walls. It can't spend, seal, unseal or change anything else.` };
+    case "AddPilot": return { title: "Add the pilot", now: "Your walls stay where you set them all day", after: `The pilot ${i.pilot} keeps them low outside your hours. It takes effect at once. The pilot can only move walls between zero and the walls your phone signed, and only your laptop or phone can remove it.`, delayed: false,
+      check: `The call sets ${i.pilot} as the pilot of ${short}. It can move the live walls between zero and your signed walls. It can't spend, seal, unseal or change anything else.` };
     case "Spend": { const t = tokenOf(i.asset); return { title: `Send ${fmt(BigInt(i.amount), t.decimals, t.places)} ${t.symbol}`, after: `to ${i.to}`, delayed: false, check: `The call moves ${fmt(BigInt(i.amount), t.decimals, t.places)} ${t.symbol} from ${short} to ${i.to}. Nothing else.` }; }
     case "BreakGlass": return { title: "Send everything to the recovery account", delayed: false, check: `The call moves every listed asset from ${short} to its pinned recovery account. Nothing else.` };
     case "Seal": return { title: "Seal the account", now: "Open", after: "Sealed", delayed: false, check: `The call seals ${short}. Nothing else.` };
@@ -89,7 +90,8 @@ export async function describe(account: Address, i: Intent): Promise<{ title: st
     case "Deploy": {
       const lines = i.init.assets.map((a, k) => { const t = tokenOf(a), p = i.init.policies[k]; const f = (n: string) => fmt(BigInt(n), t.decimals, t.places);
         return `${t.symbol}: ${f(p.perTxCap)} per payment, ${f(p.periodCap)} a day, ${f(p.floor)} kept in Savings`; });
-      return { title: "Create your Bulkhead account", after: lines.join(". "), delayed: false,
+      const pilotLine = i.init.pilot && !/^0x0{40}$/i.test(i.init.pilot) ? `. It starts with the pilot ${i.init.pilot}, which can only keep your walls lower than the ones you sign here.` : "";
+      return { title: "Create your Bulkhead account", after: lines.join(". ") + pilotLine, delayed: false,
         check: `The call creates an account whose laptop key is ${i.init.everyday} and whose Safety key is this phone. Nothing else.` };
     }
   }
@@ -130,6 +132,7 @@ export async function signIntent(phone: UnifiedAccount, account: Address, i: Int
   if (i.kind === "BreakGlass") return encodeFunctionData({ abi: accountAbi, functionName: "breakGlassWithApproval", args: [i.assets, nonce, deadline, sig] });
   if (i.kind === "Seal") return encodeFunctionData({ abi: accountAbi, functionName: "sealWithApproval", args: [nonce, deadline, sig] });
   if (i.kind === "CancelSafetyChange") return encodeFunctionData({ abi: accountAbi, functionName: "cancelSafetyChangeWithApproval", args: [nonce, deadline, sig] });
+  if (i.kind === "AddPilot") return encodeFunctionData({ abi: accountAbi, functionName: "setPilotWithApproval", args: [i.pilot, nonce, deadline, sig] });
   return encodeFunctionData({ abi: accountAbi, functionName: "queueLoosen", args: [kindId - 16, data, nonce, deadline, sig] });
 }
 

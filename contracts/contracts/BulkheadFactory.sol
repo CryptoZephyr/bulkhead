@@ -34,6 +34,8 @@ contract BulkheadFactory {
 
     function deploy(BulkheadAccount.Init calldata i, bytes32 salt, bytes calldata sig) external returns (address account) {
         if (i.everyday == address(0) || i.safety == address(0) || i.everyday == i.safety) revert BadInit();
+        // The pilot may only be a third key: as the laptop it could raise its own walls.
+        if (i.pilot == i.everyday || i.pilot == i.safety) revert BadInit();
         if (i.periodBlocks == 0 || i.assets.length != i.policies.length) revert BadInit();
         // A lost-phone replacement must wait at least as long as a widening, so it can't be a shortcut around it.
         if (i.safetyDelay < i.loosenDelay || i.safetyDelay == 0) revert BadInit();

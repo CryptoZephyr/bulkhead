@@ -4,6 +4,7 @@
 //        change: { kind: "settings", tzOffsetMin, quietStart, quietEnd, restPerTx, restPeriod, dayPerTx, dayPeriod }
 //              | { kind: "request", amount?, untilLocal?, text? }   ("about 200 until 18:00")
 //   POST /api/pilot?tick=1 { account }    -> bring the chain in line with the schedule (anyone may ask; it only follows the owner's schedule)
+//   GET  /api/pilot?info=1                 -> { pilotAddress } of the configured pilot key (or null), no account needed
 //   GET  /api/pilot?cron=1                 -> the same for every account
 // Every level comes from server/pilot.ts. The model only reads free text into { amount, untilLocal }.
 import Anthropic from "@anthropic-ai/sdk";
@@ -109,6 +110,10 @@ async function handler(req: Request): Promise<Response> {
       let changed = 0;
       for (const a of accounts) { try { if ((await tick(a)).changed) changed++; } catch { /* next account */ } }
       return Response.json({ accounts: accounts.length, changed });
+    }
+    if (req.method === "GET" && url.searchParams.get("info")) {
+      const me = await key().catch(() => null);
+      return Response.json({ pilotAddress: me?.evm ?? null });
     }
     if (req.method === "GET") {
       const account = url.searchParams.get("account") ?? "";

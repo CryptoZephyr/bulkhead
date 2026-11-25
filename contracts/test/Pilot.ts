@@ -129,3 +129,48 @@ describe("Pilot", async () => {
     assert.equal(tx, E("0.3"));
   });
 });
+
+describe("Pilot v4: no wait to add it", async () => {
+  it("can be set when the account is created, and works at once", async () => {
+    const env = await setup();
+    const { account } = await deployAccount(env, { pilot: env.sentinel.account.address });
+    assert.equal((await account.read.pilot()).toLowerCase(), env.sentinel.account.address.toLowerCase());
+    await env.everyday.sendTransaction({ to: account.address, value: E("20") });
+    await account.write.setLive([NATIVE, { perTx: E("0.1"), period: E("0.2"), until: 0n, restPerTx: E("0.1"), restPeriod: E("0.2") }], { account: env.sentinel.account });
+    assert.equal(await account.read.blastRadius([NATIVE]), E("0.1"));
+  });
+
+  it("the factory refuses a pilot that is the laptop or the phone", async () => {
+    const env = await setup();
+    await assert.rejects(deployAccount(env, { pilot: env.everyday.account.address }), /BadInit/);
+    await assert.rejects(deployAccount(env, { pilot: env.safety.account.address }), /BadInit/);
+  });
+
+  it("the phone can add or replace the pilot later, effective at once", async () => {
+    const env = await setup();
+    const { account } = await deployAccount(env);
+    const data = encode([{ type: "address" }], [env.sentinel.account.address]);
+    const dl = deadline();
+    const sig = await approve(env, await account.read.digest([4, data, 40n, dl]));
+    await account.write.setPilotWithApproval([env.sentinel.account.address, 40n, dl, sig], { account: env.relayer.account });
+    assert.equal((await account.read.pilot()).toLowerCase(), env.sentinel.account.address.toLowerCase());
+    await assert.rejects(account.write.setPilotWithApproval([env.sentinel.account.address, 40n, dl, sig], { account: env.relayer.account }), /NonceReused/);
+  });
+
+  it("refuses a forged phone signature and a pilot that is the laptop", async () => {
+    const env = await setup();
+    const { account } = await deployAccount(env);
+    await assert.rejects(account.write.setPilotWithApproval([env.sentinel.account.address, 41n, deadline(), "0x1234"], { account: env.relayer.account }), /BadSafetySignature/);
+    const data = encode([{ type: "address" }], [env.everyday.account.address]);
+    const dl = deadline();
+    const sig = await approve(env, await account.read.digest([4, data, 42n, dl]));
+    await assert.rejects(account.write.setPilotWithApproval([env.everyday.account.address, 42n, dl, sig], { account: env.relayer.account }), /BadPilot/);
+  });
+
+  it("the laptop still removes the pilot at once", async () => {
+    const env = await setup();
+    const { account } = await deployAccount(env, { pilot: env.sentinel.account.address });
+    await account.write.removePilot();
+    assert.equal(await account.read.pilot(), "0x0000000000000000000000000000000000000000");
+  });
+});

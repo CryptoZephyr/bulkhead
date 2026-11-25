@@ -14,7 +14,7 @@ export const CHAIN = "qorechain-diana";
 const chain = { id: 9800, name: "QoreChain testnet", nativeCurrency: { name: "QOR", symbol: "QOR", decimals: 18 }, rpcUrls: { default: { http: [EVM_RPC] } } } as const;
 export const pub = createPublicClient({ chain, transport: http() });
 
-export const ACCOUNT_CALLS = new Set(["spendWithApproval", "breakGlassWithApproval", "queueLoosen", "executeLoosen", "sealWithApproval", "cancelSafetyChangeWithApproval", "confirmSafety"]);
+export const ACCOUNT_CALLS = new Set(["spendWithApproval", "breakGlassWithApproval", "queueLoosen", "executeLoosen", "sealWithApproval", "cancelSafetyChangeWithApproval", "setPilotWithApproval", "confirmSafety"]);
 export const FACTORY_CALLS = new Set(["deploy"]);
 
 export class Refused extends Error {}

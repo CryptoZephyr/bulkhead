@@ -140,6 +140,7 @@ export function SetupScreen() {
   const [predicted, setPredicted] = useState<Address | null>(null);
   const [createdTx, setCreatedTx] = useState("");
   const [retry, setRetry] = useState(false);
+  const [pilotFound, setPilotFound] = useState(false);
   const [waiting, setWaiting] = useState("");
 
   // Step 6: fund (live account read, from step 5 on)
@@ -276,13 +277,22 @@ export function SetupScreen() {
   }
 
   // Step 5 action: predict the address, pair the phone, send the request, wait, then check the chain
+  useEffect(() => { void fetchPilot().then((a) => { if (alive.current) setPilotFound(a !== NATIVE); }); }, []);
+  async function fetchPilot(): Promise<Address> {
+    try {
+      const r = await fetch("/api/pilot?info=1");
+      const j = (await r.json()) as { pilotAddress?: string | null };
+      return r.ok && j.pilotAddress && /^0x[0-9a-fA-F]{40}$/.test(j.pilotAddress) ? (j.pilotAddress as Address) : NATIVE;
+    } catch { return NATIVE; }
+  }
   async function createAccount(step: Step): Promise<string> {
     const k = myKey();
     if (!k || !walls || !phone) throw new Error("Unlock your laptop key and finish the steps above first.");
     const salt = toHex(crypto.getRandomValues(new Uint8Array(32)));
+    const pilot = await fetchPilot();
     const init: DeployInit = {
       everyday: k.evm as Address, safety: phone, recovery: NATIVE, periodBlocks: PERIOD_BLOCKS, loosenDelay: LOOSEN_DELAY, safetyDelay: SAFETY_DELAY,
-      assets: [T.address as Address], policies: [walls], payees: [],
+      assets: [T.address as Address], policies: [walls], payees: [], pilot,
     };
     const addr = (await plain(
       pub.readContract({ address: DEPLOYMENT.factory, abi: factoryAbi, functionName: "predict", args: [initArgs(init), salt] }),
@@ -484,6 +494,7 @@ export function SetupScreen() {
               extra={createdTx ? <HashPlate hash={createdTx} /> : undefined}>
               <p>Your phone checks this request and asks you to approve it. Nothing moves yet.</p>
               <p className="setup-muted">Everyday is guarded by your laptop key. Savings is guarded by your phone.</p>
+              {pilotFound ? <p className="setup-muted">Your account starts with the pilot, which keeps your walls low outside your hours.</p> : null}
               <ActionButton run={createAccount} onDone={() => setCur(6)}>
                 {waiting ? "Waiting for your phone" : retry ? "Send again" : "Send to my phone"}
               </ActionButton>

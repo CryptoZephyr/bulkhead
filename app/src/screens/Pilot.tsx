@@ -59,12 +59,13 @@ export function PilotScreen() {
         </section>
       )}
 
+      {v?.tripped && <Tripped t={v.tripped} />}
       {v && !v.added && <AddPilot v={v} />}
       <PendingPlate account={myAddr()} onDone={() => void load()} />
 
       {!unlocked && <UnlockPlate why="Changing the pilot's schedule or asking for more is signed by your laptop key." onUnlocked={() => setTick((n) => n + 1)} />}
       {v && unlocked && <Schedule v={v} onDone={() => void load()} />}
-      {v && unlocked && v.added && <AskForMore onDone={() => void load()} />}
+      {v && unlocked && v.added && !v.tripped && <AskForMore onDone={() => void load()} />}
 
       {v && (
         <section className="agent-decisions" aria-labelledby="pilot-log-h">
@@ -85,6 +86,22 @@ export function PilotScreen() {
         </section>
       )}
     </div>
+  );
+}
+
+/** The tripwire closed the wall. The laptop can only ask; the phone decides. */
+function Tripped({ t }: { t: { at: number; reason: string } }) {
+  const when = new Date(t.at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+  return (
+    <section className="plate agent-add" role="alert" aria-labelledby="tripped-h">
+      <h2 id="tripped-h" style={{ color: "var(--on-plate)" }}>Tripwire</h2>
+      <p>The pilot closed your wall at {when}: {t.reason} Only your phone can reopen it.</p>
+      <p className="muted" style={{ fontSize: 14, margin: 0 }}>Until then nothing can leave Everyday, and the pilot won't open the wall for your schedule or for a request.</p>
+      <ActionButton kind="primary" run={async (step) => {
+        await actions.requestWiden(myAddr(), { kind: "PilotReopen", trippedAt: t.at }, step);
+        return "Sent to your phone";
+      }}>Ask my phone to reopen it</ActionButton>
+    </section>
   );
 }
 

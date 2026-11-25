@@ -4,13 +4,15 @@ import { current } from "./wallet";
 
 import type { PilotSettingsJson } from "./pilotSchedule";
 export type { PilotSettingsJson };
-export interface PilotLog { at: number; kind: "schedule" | "request" | "refused" | "settings"; reason: string; txHash?: string; blastRadius?: string }
+export interface PilotLog { at: number; kind: "schedule" | "request" | "refused" | "settings" | "tripwire" | "reopen"; reason: string; txHash?: string; blastRadius?: string }
 export interface PilotView {
   account: string; pilotAddress: string | null; added: boolean; saved: boolean; quietNow: boolean; settings: PilotSettingsJson;
   chain: { block: string; ceiling: { perTx: string; period: string }; effective: { perTx: string; period: string }; blastRadius: string; sealed: boolean; live: { until: string } };
   log: PilotLog[];
   /** A looser schedule waiting for the phone. */
   pendingSettings: { settings: PilotSettingsJson; at: number } | null;
+  /** Set when the tripwire closed the wall. Only the phone reopens it. */
+  tripped: { at: number; reason: string } | null;
 }
 
 const msg = (account: string, change: object, at: number) => `Bulkhead pilot change\naccount: ${account.toLowerCase()}\nat: ${at}\n${JSON.stringify(change)}`;

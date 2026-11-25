@@ -34,6 +34,28 @@ You need a laptop browser, a phone browser and a little QOR. The live app runs o
 
 Or skip setup: the live demo account is [`0xB5a69255…0Df6`](https://explore.qore.network/address/0xB5a69255fE41c9ab4D9A52478A22966E3ddE0Df6). It is a v4 account made with the owner's phone on 25 November.
 
+## Screenshots
+
+Captured from the live app on QoreChain testnet, with real data from a demo account.
+
+<table>
+<tr>
+<td align="center"><img src="docs/screenshots/hull.png" width="420" alt="Hull screen"><br><sub>Hull: the most anyone could take right now (0.25 fUSD), the pilot's blast radius through the day, and the compartments.</sub></td>
+<td align="center"><img src="docs/screenshots/pilot.png" width="420" alt="Pilot screen"><br><sub>Pilot: quiet hours and walls, capped by what the phone signed, with a log of what the pilot did.</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/bills.png" width="420" alt="Bills screen"><br><sub>Bills: the bill agent pays from its own capped account (60.00 fUSD, 25.00 a day).</sub></td>
+<td align="center"><img src="docs/screenshots/landing.png" width="420" alt="Landing page"><br><sub>Landing: compartments and walls, and the two-device split.</sub></td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td align="center"><img src="docs/screenshots/phone-safety-key.png" width="220" alt="Phone: create your Safety key"><br><sub>Phone: create the Safety key.</sub></td>
+<td align="center"><img src="docs/screenshots/phone-landing.png" width="220" alt="Phone landing page"><br><sub>Phone: landing page.</sub></td>
+</tr>
+</table>
+
 ## The problem
 
 - A stolen or phished key drains a whole wallet in one go. Nothing on chain says how much one key may take.

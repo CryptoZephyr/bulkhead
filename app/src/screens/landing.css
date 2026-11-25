@@ -18,3 +18,13 @@
   .landing-paths .btn { width: 100%; justify-content: center; }
   .landing-top-in .readout { order: 3; width: 100%; padding-bottom: 8px; }
 }
+
+@media (max-width: 600px) {
+  .landing-hero h1 { font-size: clamp(30px, 9vw, 36px); }
+  .landing-hero .lead { font-size: 17px; }
+  .landing-top-in { min-height: 52px; gap: 0 var(--s2); }
+  .landing-top-in > a:first-child { min-height: 44px; display: inline-flex; align-items: center; }
+  .landing-open { margin-left: auto; }
+  .landing-main { gap: var(--s3); }
+  .landing .small a { display: inline-block; padding-block: 12px; }
+}

@@ -20,3 +20,10 @@
 .addr { margin: 0; font-size: 16px; font-weight: 600; color: var(--on-plate); overflow-wrap: anywhere; }
 .addr.mono { font-family: var(--f-mono); font-size: 14px; }
 .settings .muted { color: var(--on-plate-2); }
+
+@media (max-width: 600px) {
+  .settings .plate { padding: var(--s3) var(--s2) var(--s2); }
+  .settings .btn { width: 100%; }
+  .radio input { width: 24px; height: 24px; }
+  .radio { min-height: 52px; }
+}

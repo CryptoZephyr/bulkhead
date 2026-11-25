@@ -33,3 +33,9 @@
   .proof-row { grid-template-columns: minmax(0, 1fr); }
   .proof-row .status, .proof-detail, .proof-row .tx-plate, .proof-row .tx-pending { grid-column: 1; }
 }
+
+@media (max-width: 600px) {
+  .proof { gap: var(--s3); }
+  .proof-net-name { font-size: 26px; }
+  .proof .addr-actions .btn { min-height: 44px; }
+}

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { plan, planRequest, isQuiet, validate, sameAsChain, untilBlock, isTightening, BadPilot, type PilotSettings, type Ceiling } from "../pilot.js";
+import { plan, planRequest, isQuiet, validate, sameAsChain, untilBlock, isTightening, tripwire, CLOSED, BadPilot, type PilotSettings, type Ceiling, type TripEvent } from "../pilot.js";
 
 const C: Ceiling = { perTx: 5_000_000n, period: 15_000_000n };
 const S: PilotSettings = { tzOffsetMin: 60, quietStart: "00:00", quietEnd: "07:00", restPerTx: 400_000n, restPeriod: 400_000n, dayPerTx: 5_000_000n, dayPeriod: 15_000_000n };
@@ -78,4 +78,40 @@ test("schedule changes: only a stricter schedule counts as tightening", () => {
   assert.equal(isTightening(S, { ...S, restPerTx: 100_000n }), true, "a lowered night wall");
   assert.equal(isTightening(S, { ...S, tzOffsetMin: 0 }), false, "a time zone change");
   assert.equal(isTightening(S, { ...S, tzOffsetMin: 0, quietStart: "23:00", quietEnd: "06:00" }), false, "a time zone change, even if it lines up");
+});
+
+const spent = (t: number, withApproval = false): TripEvent => ({ kind: "Spent", at: t, block: 1n, amount: 1_000_000n, withApproval });
+const held = (t: number): TripEvent => ({ kind: "HeldByPilot", at: t, block: 1n, amount: 9_000_000n });
+
+test("tripwire (a): any payment held over the live wall trips it, day or night", () => {
+  const night = tripwire([held(at(3, 12)), held(at(3, 14))], at(3, 20), S);
+  assert.equal(night.tripped, true);
+  assert.equal(night.reason, "2 payments were held over your live wall at 03:12. The pilot closed the wall to zero.");
+  const day = tripwire([spent(at(12)), held(at(13, 5))], at(13, 10), S);
+  assert.equal(day.tripped, true);
+  assert.match(day.reason, /^1 payment was held over your live wall at 13:05\./);
+  assert.equal(tripwire([held(at(13))], at(13), null).tripped, true, "trips even without a schedule");
+});
+
+test("tripwire (b): three laptop payments within 10 minutes trip it; phone-approved ones don't count", () => {
+  const r = tripwire([spent(at(12, 0)), spent(at(12, 4)), spent(at(12, 9))], at(12, 10), S);
+  assert.equal(r.tripped, true);
+  assert.equal(r.reason, "3 payments left Everyday within 10 minutes, the last at 12:09. The pilot closed the wall to zero.");
+  assert.equal(tripwire([spent(at(12, 0)), spent(at(12, 6)), spent(at(12, 11))], at(12, 12), S).tripped, false, "spread over 11 minutes");
+  assert.equal(tripwire([spent(at(12, 0)), spent(at(12, 1), true), spent(at(12, 2), true), spent(at(12, 3))], at(12, 4), S).tripped, false, "two of them approved on the phone");
+});
+
+test("tripwire (c): a laptop payment inside quiet hours trips it", () => {
+  const r = tripwire([spent(at(2, 30))], at(2, 31), S);
+  assert.equal(r.tripped, true);
+  assert.equal(r.reason, "A payment left Everyday at 02:30, inside your quiet hours (00:00 to 07:00). The pilot closed the wall to zero.");
+  assert.equal(tripwire([spent(at(2, 30), true)], at(2, 31), S).tripped, false, "approved on the phone");
+});
+
+test("tripwire: an ordinary day doesn't trip it", () => {
+  const r = tripwire([spent(at(9)), spent(at(12, 30)), spent(at(12, 45)), spent(at(18), true), spent(at(18, 1), true), spent(at(18, 2), true)], at(19), S);
+  assert.deepEqual(r, { tripped: false, reason: "Nothing unusual." });
+  assert.equal(tripwire([], at(3), S).tripped, false);
+  assert.equal(tripwire([held(at(13))], at(12), S).tripped, false, "an event after now is ignored");
+  assert.deepEqual([CLOSED.perTx, CLOSED.period, CLOSED.until, CLOSED.restPerTx, CLOSED.restPeriod], [0n, 0n, 0n, 0n, 0n]);
 });

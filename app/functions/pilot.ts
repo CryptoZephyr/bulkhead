@@ -3,6 +3,9 @@
 //   POST /api/pilot { account, at, change, signature }   (laptop key, like /api/bills)
 //        change: { kind: "settings", tzOffsetMin, quietStart, quietEnd, restPerTx, restPeriod, dayPerTx, dayPeriod }
 //              | { kind: "request", amount?, untilLocal?, text? }   ("about 200 until 18:00")
+//        A settings change that loosens the schedule is not applied: it waits in pendingSettings for the phone.
+//   POST /api/pilot { account, change: { kind: "approve-settings", settings, nonce, deadline, phoneSig } }
+//        (no laptop signature: the phone's ML-DSA-87 signature over pilotScheduleDigest, checked on chain)
 //   POST /api/pilot?tick=1 { account }    -> bring the chain in line with the schedule (anyone may ask; it only follows the owner's schedule)
 //   GET  /api/pilot?info=1                 -> { pilotAddress } of the configured pilot key (or null), no account needed
 //   GET  /api/pilot?cron=1                 -> the same for every account
@@ -11,8 +14,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { verifyMessage, type Address, type Hex } from "viem";
 import accountAbi from "../src/chain/abi/BulkheadAccount.json" with { type: "json" };
 import { pub } from "../server/relayer.js";
-import { plan, planRequest, sameAsChain, validate, isQuiet, DEFAULTS, BadPilot, type PilotSettings, type LiveTarget } from "../server/pilot.js";
+import { plan, planRequest, sameAsChain, validate, isQuiet, isTightening, DEFAULTS, BadPilot, type PilotSettings, type LiveTarget } from "../server/pilot.js";
 import { readLatest, writeVersion, folders } from "../server/blobjson.js";
+import { phoneSignedSchedule } from "../server/phoneSig.js";
+import { canonicalSettings, PILOT_SCHEDULE_MAX_AHEAD_MS, type PilotSettingsJson } from "../src/chain/pilotSchedule.js";
 import { readChain, applyTarget, pilotKey, type ChainView } from "../server/pilotChain.js";
 
 export const config = { runtime: "nodejs", maxDuration: 60 };
@@ -21,7 +26,13 @@ const ADDR = /^0x[0-9a-fA-F]{40}$/;
 const fmt = (n: bigint) => (Number(n) / 1e6).toFixed(2);
 
 interface LogEntry { at: number; kind: "schedule" | "request" | "refused" | "settings"; reason: string; txHash?: string; blastRadius?: string; target?: Record<string, string> }
-interface Book { account: string; settings: Record<string, string | number> | null; log: LogEntry[] }
+interface Book {
+  account: string; settings: Record<string, string | number> | null; log: LogEntry[];
+  /** A looser schedule the laptop proposed, waiting for the phone. */
+  pendingSettings?: { settings: PilotSettingsJson; at: number } | null;
+  /** Phone approval nonces already used (the last 50). */
+  usedNonces?: string[];
+}
 
 // Storage: Vercel Blob in production, memory locally.
 const mem = new Map<string, Book>();
@@ -43,6 +54,7 @@ const toSettings = (r: Record<string, string | number>): PilotSettings => ({
 });
 const fromSettings = (s: PilotSettings) => ({ ...s, restPerTx: String(s.restPerTx), restPeriod: String(s.restPeriod), dayPerTx: String(s.dayPerTx), dayPeriod: String(s.dayPeriod) });
 const targetJson = (t: LiveTarget) => ({ perTx: String(t.perTx), period: String(t.period), until: String(t.until), restPerTx: String(t.restPerTx), restPeriod: String(t.restPeriod) });
+const describeSettings = (s: PilotSettings) => `Quiet hours ${s.quietStart} to ${s.quietEnd}. Night wall ${fmt(s.restPerTx)} per payment, daytime wall ${fmt(s.dayPerTx)}.`;
 const chainJson = (c: ChainView) => JSON.parse(JSON.stringify(c, (_k, v) => (typeof v === "bigint" ? String(v) : v)));
 
 export const pilotMessage = (account: string, change: object, at: number) => `Bulkhead pilot change\naccount: ${account.toLowerCase()}\nat: ${at}\n${JSON.stringify(change)}`;
@@ -74,6 +86,46 @@ async function tick(account: string, now = Date.now(), known?: Book) {
   const r = await apply(book, chain, t, "schedule");
   if (r) await putBook(book);
   return { book, changed: !!r, reason: t.reason };
+}
+
+// Act on the settings just saved, not on a re-read copy (storage reads can lag a write).
+const tickAfterSave = (account: string, chain: ChainView, book: Book) =>
+  chain.pilot !== "0x0000000000000000000000000000000000000000"
+    ? tick(account, Date.now(), book).catch((e) => ({ changed: false, reason: (e as Error).message }))
+    : Promise.resolve({ changed: false, reason: "Add the pilot on your phone to start." });
+
+/**
+ * The phone approves a looser schedule the laptop proposed. No laptop signature: the phone's ML-DSA-87
+ * signature over pilotScheduleDigest is checked against the account's on-chain Safety key. The settings
+ * must be exactly the ones waiting, so the phone only ever approves what the laptop proposed.
+ */
+async function approveSettings(account: string, c: { [k: string]: unknown }) {
+  const settings = c.settings as PilotSettingsJson | undefined;
+  if (!settings || typeof settings !== "object") throw new BadPilot("Send the settings the phone approved.");
+  let nonce: bigint, deadline: bigint;
+  try { nonce = BigInt(String(c.nonce)); deadline = BigInt(String(c.deadline)); } catch { throw new BadPilot("nonce and deadline must be whole numbers."); }
+  const nowS = BigInt(Math.floor(Date.now() / 1000));
+  if (deadline < nowS) throw new BadPilot("This approval has expired. Approve it again on your phone.");
+  if (deadline > nowS + BigInt(PILOT_SCHEDULE_MAX_AHEAD_MS / 1000)) throw new BadPilot("This approval's deadline is too far ahead.");
+  const book = await getBook(account);
+  if (!book.pendingSettings) throw new BadPilot("No schedule change is waiting for your phone.");
+  let canon: string;
+  try { canon = canonicalSettings(settings); } catch { throw new BadPilot("The settings don't look right."); }
+  if (canon !== canonicalSettings(book.pendingSettings.settings)) throw new BadPilot("This isn't the schedule your laptop proposed. Nothing changed.");
+  if ((book.usedNonces ?? []).includes(nonce.toString())) throw new BadPilot("This approval was already used.");
+  if (!(await phoneSignedSchedule(account as Address, settings, nonce, deadline, String(c.phoneSig ?? "0x") as Hex)))
+    return Response.json({ error: "This approval wasn't signed by the account's phone." }, { status: 401 });
+
+  const chain = await readChain(account as Address);
+  const s = toSettings(book.pendingSettings.settings as unknown as Record<string, string | number>);
+  validate(s, chain.ceiling);
+  book.settings = fromSettings(s);
+  book.pendingSettings = null;
+  book.usedNonces = [...(book.usedNonces ?? []), nonce.toString()].slice(-50);
+  log(book, { kind: "settings", reason: `Approved on your phone: ${describeSettings(s)}` });
+  await putBook(book);
+  const r = await tickAfterSave(account, chain, book);
+  return Response.json({ ok: true, changed: r.changed, reason: r.reason, log: book.log });
 }
 
 /** "about 200 until 6pm" -> { amount, untilLocal }. The model reads; planRequest decides. */
@@ -124,7 +176,7 @@ async function handler(req: Request): Promise<Response> {
       let preview: unknown = null;
       try { preview = targetJson(plan(s, chain.ceiling, Date.now(), chain.block, chain.periodBlocks)); } catch { /* settings no longer fit */ }
       return Response.json({ account: book.account, pilotAddress: me?.evm ?? null, added: !!me && chain.pilot.toLowerCase() === (me.evm as string).toLowerCase(),
-        settings: book.settings ?? fromSettings(s as PilotSettings), saved: !!book.settings, quietNow: isQuiet(s as PilotSettings, Date.now()), preview, chain: chainJson(chain), log: book.log });
+        settings: book.settings ?? fromSettings(s as PilotSettings), saved: !!book.settings, quietNow: isQuiet(s as PilotSettings, Date.now()), preview, pendingSettings: book.pendingSettings ?? null, chain: chainJson(chain), log: book.log });
     }
     if (req.method !== "POST") return Response.json({ error: "Not allowed." }, { status: 405 });
     const body = (await req.json()) as { account?: string; at?: number; change?: { kind?: string; [k: string]: unknown }; signature?: Hex };
@@ -132,6 +184,8 @@ async function handler(req: Request): Promise<Response> {
     if (!ADDR.test(account)) throw new BadPilot("account must be a 0x address.");
 
     if (url.searchParams.get("tick")) { const r = await tick(account); return Response.json({ changed: r.changed, reason: r.reason, log: r.book.log }); }
+
+    if (body.change?.kind === "approve-settings") return await approveSettings(account, body.change);
 
     if (!body.change || typeof body.at !== "number") throw new BadPilot("Send account, at, change and signature.");
     if (Math.abs(Date.now() - body.at) > 5 * 60_000) throw new BadPilot("This change is too old. Try again.");
@@ -145,11 +199,18 @@ async function handler(req: Request): Promise<Response> {
     if (c.kind === "settings") {
       const s = toSettings(c as Record<string, string | number>);
       validate(s, chain.ceiling);
+      // The laptop key alone may only make the schedule stricter. Anything looser waits for the phone.
+      if (!isTightening(book.settings ? toSettings(book.settings) : null, s)) {
+        book.pendingSettings = { settings: fromSettings(s) as PilotSettingsJson, at: Date.now() };
+        await putBook(book);
+        return Response.json({ ok: false, needsPhone: true, reason: "Loosening your schedule needs your phone. Approve it there.", pendingSettings: book.pendingSettings });
+      }
       book.settings = fromSettings(s);
-      log(book, { kind: "settings", reason: `Quiet hours ${s.quietStart} to ${s.quietEnd}. Night wall ${fmt(s.restPerTx)} per payment, daytime wall ${fmt(s.dayPerTx)}.` });
+      // A stricter save replaces whatever was waiting: the phone can't approve a schedule the laptop moved away from.
+      book.pendingSettings = null;
+      log(book, { kind: "settings", reason: describeSettings(s) });
       await putBook(book);
-      // Act on the settings just saved, not on a re-read copy (storage reads can lag a write).
-      const r = chain.pilot !== "0x0000000000000000000000000000000000000000" ? await tick(account, Date.now(), book).catch((e) => ({ changed: false, reason: (e as Error).message })) : { changed: false, reason: "Add the pilot on your phone to start." };
+      const r = await tickAfterSave(account, chain, book);
       return Response.json({ ok: true, changed: r.changed, reason: r.reason, log: book.log });
     }
     if (c.kind === "request") {

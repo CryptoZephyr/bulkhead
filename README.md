@@ -82,7 +82,7 @@ Bulkhead is damage-bounded money on QoreChain. Funds sit in compartments. Each o
 A fixed cap has one height. The pilot lets the wall sit low while you are asleep and rise while you are working, and it can never go above what your phone signed.
 
 1. The phone signs the pilot key into the account. On v4 it is part of the phone-signed `Init` at creation, and later the phone can replace it with `setPilotWithApproval`, effective at once. The pilot can never be the laptop key or the phone key.
-2. On the laptop you save quiet hours, a night wall and a daytime wall. The laptop signs that change. The server checks it in code: the daytime wall must be at or under the phone-signed ceiling, and the night wall must be lower than the day wall.
+2. On the laptop you save quiet hours, a night wall and a daytime wall. A stricter schedule (quiet hours that cover the old ones, walls no higher) takes effect on the laptop's signature. A looser one goes to your phone: the phone signs that exact schedule with ML-DSA-87, and the server checks the signature against your on-chain Safety key with the `pqcKeyStatus` and `pqcVerify` precompiles before the pilot follows it. The daytime wall can never be above the phone-signed ceiling.
 3. The pilot service computes the target from the clock and the chain and, if the chain differs, sends `setLive` from the pilot key. In quiet hours the wall drops to its resting level. In the day it rises, with an end block set to the start of the next quiet hours.
 4. A raise closes itself. `effectiveCaps` returns the resting values once `until` has passed, even if the pilot is gone. A raise can last one period at most, or `setLive` reverts with `TooFarAhead`.
 5. If you need more, you type something like "about 12 until 18:00". The model reads two fields, the amount and the time. `planRequest` in `app/server/pilot.ts` decides. It clamps to the ceiling and ends the raise at the earlier of your time and the start of quiet hours.
@@ -111,7 +111,7 @@ It is live and proven. On v3, the night wall closed to 0.40 and a stolen laptop'
 | Lost phone | Nothing while the wait runs | `proposeSafety` seals the account at once. The change waits `safetyDelay`, about three days in the app. The old phone can veto it, and `confirmSafety` reverts with `TooEarly` before the end. The factory forces `safetyDelay` to be at least `loosenDelay` |
 | Quantum attacker | A classical laptop key at most, which is the stolen laptop rows above. It cannot widen a wall | Every widening, phone-approved spend, seal-by-phone and pilot change needs an ML-DSA-87 signature, checked through the `pqcVerify` precompile |
 
-One more case, written in plain terms. The pilot service takes the laptop key's signature for changes to your quiet hours. A thief with the laptop key could move your quiet hours to daytime, and the pilot would then raise the wall. It would still stop at the daytime wall you saved, which can never be above the phone-signed ceiling. So the worst case is the same as a fixed cap, but the quiet-hours protection is only as strong as the laptop key. Round 26b in [DEPLOYMENTS.md](docs/DEPLOYMENTS.md) shows a saved schedule change opening the wall.
+One more case. A thief with the laptop key can't move your quiet hours either. A schedule change that loosens anything (shorter quiet hours, higher walls, a new time zone) waits for your phone's post-quantum signature, checked on chain. In daytime, the laptop can still ask the pilot for more room, but never above the phone-signed ceiling, so a stolen laptop by day is no worse off than a fixed cap.
 
 ## What users control
 
@@ -153,53 +153,46 @@ The chain caps both again. The bill agent's account allows fUSD only, 10 per pay
 The laptop app and the phone view run in the browser. A set of Vercel functions carries ciphertext and signed calls, and holds the keys for the pilot, the relayer and the bill agent. The chain holds the rules.
 
 ```mermaid
-flowchart LR
-    Laptop["Laptop app, laptop key"]
-    Phone["Phone view, Safety key ML-DSA-87"]
-
-    subgraph Vercel["Vercel functions"]
-        Rest["rest gateway"]
-        Relay["relay"]
-        Requests["requests queue"]
-        Pair["pair"]
-        Pilot["pilot"]
-        Bills["bills"]
-        Agent["agent"]
+flowchart TB
+    subgraph Devices["Your two devices, one web app"]
+        Laptop["Laptop: spends inside the walls"]
+        Phone["Phone: ML-DSA-87 Safety key"]
     end
 
-    Blob[("Vercel Blob, ciphertext and records")]
-    Serv["Claude Haiku via SERV"]
+    subgraph Server["Vercel functions"]
+        Queue["Requests queue, ciphertext only"]
+        Relay["Relayer, allowlisted calls"]
+        Pilot["Pilot, deterministic levels"]
+        Agents["Bills and agent"]
+        Pair["Pairing relay"]
+    end
 
-    subgraph Chain["QoreChain testnet, EVM chain id 9800"]
+    Blob[("Vercel Blob")]
+    Model["Claude Haiku via SERV, reads text only"]
+
+    subgraph Chain["QoreChain testnet, chain id 9800"]
         Factory["BulkheadFactory"]
         Account["BulkheadAccount"]
-        Pre["pqcVerify and pqcKeyStatus precompiles"]
+        Pre["pqcVerify and pqcKeyStatus"]
     end
 
-    Laptop --> Rest
-    Laptop --> Requests
-    Laptop --> Pair
-    Laptop --> Pilot
-    Laptop --> Bills
-    Phone --> Pair
-    Phone --> Requests
-    Phone --> Relay
-    Requests --> Blob
-    Pair --> Blob
-    Pilot --> Blob
-    Bills --> Blob
-    Pilot --> Serv
-    Bills --> Serv
-    Agent --> Serv
-    Agent --> Requests
-    Rest --> Chain
+    Laptop -->|sealed requests| Queue
+    Queue -->|phone reads| Phone
+    Laptop <-->|QR handshake| Pair
+    Pair <--> Phone
+    Phone -->|signed calls| Relay
+    Relay --> Factory
+    Relay --> Account
     Laptop -->|spend and tighten| Account
-    Relay -->|phone signed calls| Factory
-    Relay -->|phone signed calls| Account
-    Pilot -->|setLive| Account
-    Bills -->|pays from the agent account| Chain
+    Pilot -->|setLive, inside the policy| Account
+    Agents -->|pays from its own account| Chain
+    Pilot --> Model
+    Agents --> Model
+    Queue --> Blob
+    Pilot --> Blob
     Factory -->|deploys| Account
     Account --> Pre
+    Pilot -->|checks phone signatures| Pre
 ```
 
 A widening needs the phone and a wait. The phone signs, and the relayer pays the gas.
@@ -249,6 +242,8 @@ sequenceDiagram
     Account-->>Thief: Revert NotTighter
     Thief->>Account: spend 5.00 inside the policy
     Account-->>Thief: HeldByPilot, nothing moved, not sealed
+    Thief->>Pilot: Move the quiet hours away, signed by the laptop key
+    Pilot-->>Thief: Loosening needs the phone, held as pending
     Note over Pilot,Account: In the morning the pilot raises until the next quiet hours, then the raise ends by itself
 ```
 
@@ -397,7 +392,7 @@ Two outcomes are not errors. A tripwire spend returns tx code 0, seals the accou
 - There is one shared bill-agent account and one daily chain cap for all users. It is a demo of the agent, not a per-user agent.
 - The pilot service is centralised. One server holds the pilot key. The contract bounds it, and the laptop can remove the pilot at once with `removePilot`, but a down or hostile pilot service means walls stay where they were.
 - Vercel's scheduled runs happen once a day (the pilot at 06:43 UTC, the bills at 10:17 UTC). The morning raise happens when the app is opened, which triggers a pilot tick.
-- The pilot service accepts quiet-hours changes signed by the laptop key, so a thief with that key could move the schedule. The phone-signed policy still caps the result.
+- In daytime the laptop key alone can ask the pilot for more room, up to the phone-signed ceiling. Loosening the schedule itself needs the phone.
 - The web app is served from our server. A compromised deployment could serve bad JavaScript. A native or locally built app would remove that, and this one is not.
 - Old v3 accounts keep the delayed pilot path. Adding a pilot to them is a widening that waits `loosenDelay`.
 - Browser reads depend on our gateway, because the public REST API sends no CORS headers.

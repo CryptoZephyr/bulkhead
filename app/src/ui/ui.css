@@ -47,3 +47,15 @@
 /* Proof plates (section 8) */
 .hash { display: inline-flex; align-items: center; gap: 8px; background: var(--sheet); color: var(--text); border-radius: var(--r-chip); padding: 4px 10px; font-size: 13px; font-weight: 600; }
 .hash .mono { font-size: 12px; }
+
+/* Phones: plates give width back to content; long strings wrap; page headings scale down. */
+@media (max-width: 600px) {
+  .plate { padding: var(--s3) var(--s2) var(--s2); }
+  .plate a:not(.btn):not(.hash-link) { display: inline-block; padding-block: 10px; }
+  .plate p a:not(.btn), .plate li a:not(.btn), .plate span a:not(.btn) { display: inline; padding-block: 0; }
+  .comp-bal { font-size: 32px; }
+  .btn-error:empty { min-height: 0; margin-top: 0; }
+  .hash { overflow-wrap: anywhere; }
+  .screen div:has(> .btn + .btn-error) { display: block !important; }
+  .screen div:has(> .btn + .btn-error) > .btn { width: 100%; }
+}

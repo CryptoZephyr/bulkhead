@@ -6,3 +6,5 @@
 .history-row .hash { justify-self: start; }
 .filter { border: 0; padding: 0; margin: 0; display: flex; gap: var(--s2); flex-wrap: wrap; }
 .filter label { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; font-weight: 600; }
+
+@media (max-width: 600px) { .history-row { padding: var(--s2); } }

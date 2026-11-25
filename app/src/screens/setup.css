@@ -79,3 +79,11 @@
   .setup-facts dt { margin-top: 8px; }
   .setup-walls p { font-size: 16px; }
 }
+
+@media (max-width: 600px) {
+  .setup-input.mono { font-size: 16px; }
+  .setup-todo { min-height: 0; padding: 16px; }
+  .setup .btn { justify-self: stretch; width: 100%; }
+  .setup .btn-small { width: auto; justify-self: start; }
+  .setup-inline { min-height: 44px; }
+}

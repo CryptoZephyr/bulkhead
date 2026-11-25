@@ -384,6 +384,7 @@ Two outcomes are not errors. A tripwire spend returns tx code 0, seals the accou
 - The web app is served from our server. A compromised deployment could serve bad JavaScript. A native or locally built app would remove that, and this one is not.
 - Old v3 accounts keep the delayed pilot path. Adding a pilot to them is a widening that waits `loosenDelay`.
 - Browser reads depend on our gateway, because the public REST API sends no CORS headers.
+- The full threat model, with invariants, tests and open items, is in [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).
 
 ## Built with AI
 

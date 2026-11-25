@@ -16,7 +16,7 @@ export const qorechainTestnet = defineChain({
 });
 
 export const DEPLOYMENT = {
-  factory: "0xcec5ef27b5ce235c2c13ef8f1549abb986099db6",   // v3: the pilot (docs/DEPLOYMENTS.md)
+  factory: "0xdd2e1ed55393db01086c5a4d829f4558094870cb",   // v4: the pilot is approved at creation, added at once by the phone (docs/DEPLOYMENTS.md)
 } as const;
 
 export const NATIVE = "0x0000000000000000000000000000000000000000" as const;

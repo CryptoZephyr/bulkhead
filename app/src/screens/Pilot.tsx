@@ -1,5 +1,5 @@
 // Pilot (#/pilot): the agent that keeps your blast radius as small as your day needs.
-//   1. Add the pilot: your phone signs it, then the account's widening delay runs.
+//   1. Add the pilot: your phone signs it and it takes effect at once.
 //   2. Set your quiet hours and your night and daytime walls (never above what your phone signed).
 //   3. Ask for more when you need it. Inside quiet hours the pilot refuses: a stolen laptop could be asking.
 import { useCallback, useEffect, useState, type FormEvent } from "react";
@@ -92,7 +92,7 @@ function AddPilot({ v }: { v: PilotView }) {
   return (
     <section className="plate agent-add">
       <h2 style={{ color: "var(--on-plate)" }}>Add the pilot</h2>
-      <p>Your phone approves it. After that the account's usual widening delay runs, then the pilot can start keeping your walls low.</p>
+      <p>Your phone approves it, and it takes effect as soon as your phone approves. The pilot can only move your walls between zero and the walls your phone signed.</p>
       <ActionButton kind="primary" run={async (step) => {
         await actions.requestWiden(myAddr(), { kind: "AddPilot", pilot: v.pilotAddress as Address }, step);
         return "Sent to your phone";

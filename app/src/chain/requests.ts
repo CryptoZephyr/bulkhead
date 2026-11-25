@@ -9,6 +9,7 @@ import accountAbi from "./abi/BulkheadAccount.json";
 import factoryAbi from "./abi/BulkheadFactory.json";
 import { pub, readAccount, fmt } from "./account";
 import { CHAIN_ID, DEPLOYMENT, NATIVE, TOKENS } from "./config";
+import { pilotScheduleDigestBytes, type PilotSettingsJson } from "./pilotSchedule";
 
 export const PURPOSE = "bulkhead-request-v1";
 
@@ -22,7 +23,8 @@ export type Intent =
   | { kind: "BreakGlass"; assets: Address[] }                         // immediate
   | { kind: "Seal" }                                                  // immediate: the phone seals on its own
   | { kind: "CancelSafetyChange"; pending: Address }                  // immediate: veto a phone replacement
-  | { kind: "Deploy"; salt: Hex; init: DeployInit };                  // the phone authorises its new account
+  | { kind: "Deploy"; salt: Hex; init: DeployInit }                   // the phone authorises its new account
+  | { kind: "PilotSchedule"; settings: PilotSettingsJson };            // off chain: a looser pilot schedule, checked by the server
 
 /** BulkheadAccount.Init with amounts as decimal strings (JSON has no bigint). */
 export interface DeployInit {
@@ -53,6 +55,7 @@ export function encodeIntent(i: Intent): { kindId: number; data: Hex } {
     case "Seal": return { kindId: 2, data: "0x" };
     case "CancelSafetyChange": return { kindId: 3, data: encodeAbiParameters([{ type: "address" }], [i.pending]) };
     case "Deploy": throw new Error("Deploy is signed against the factory, not an account.");
+    case "PilotSchedule": throw new Error("A pilot schedule is signed for the pilot service, not the account.");
   }
 }
 
@@ -66,6 +69,13 @@ export async function delayText(account: Address): Promise<string> {
   const blocks = (await pub.readContract({ address: account, abi: accountAbi, functionName: "loosenDelay" })) as bigint;
   const min = Math.max(1, Math.round((Number(blocks) * 1.42) / 60));
   return min >= 90 ? `about ${Math.round(min / 60)} hours` : `about ${min} minutes`;
+}
+
+const tzText = (m: number) => `UTC${m < 0 ? "-" : "+"}${Math.floor(Math.abs(m) / 60)}${Math.abs(m) % 60 ? `:${String(Math.abs(m) % 60).padStart(2, "0")}` : ""}`;
+/** A pilot schedule in plain words. */
+export function scheduleText(s: PilotSettingsJson): string {
+  const f = (n: string) => fmt(BigInt(n), TOKENS.fUSD.decimals, TOKENS.fUSD.places);
+  return `Quiet ${s.quietStart} to ${s.quietEnd} (${tzText(Number(s.tzOffsetMin))}). Night wall ${f(s.restPerTx)} per payment, ${f(s.restPeriod)} a day. Daytime wall ${f(s.dayPerTx)} per payment, ${f(s.dayPeriod)} a day.`;
 }
 
 export async function describe(account: Address, i: Intent): Promise<{ title: string; now?: string; after?: string; delayed: boolean; check: string }> {
@@ -87,6 +97,12 @@ export async function describe(account: Address, i: Intent): Promise<{ title: st
     case "BreakGlass": return { title: "Send everything to the recovery account", delayed: false, check: `The call moves every listed asset from ${short} to its pinned recovery account. Nothing else.` };
     case "Seal": return { title: "Seal the account", now: "Open", after: "Sealed", delayed: false, check: `The call seals ${short}. Nothing else.` };
     case "CancelSafetyChange": return { title: "Stop the phone replacement", now: `Replacing this phone with ${i.pending}`, after: "This phone stays", delayed: false, check: `The call cancels the replacement of this phone on ${short}. Nothing else.` };
+    case "PilotSchedule": {
+      // The current schedule comes from the pilot service, not from the request.
+      const cur = await fetch(`/api/pilot?account=${account}`).then((r) => r.json()).catch(() => null) as { saved?: boolean; settings?: PilotSettingsJson } | null;
+      return { title: "Loosen the pilot's schedule", now: cur?.saved && cur.settings ? scheduleText(cur.settings) : "No schedule yet", after: scheduleText(i.settings), delayed: false,
+        check: `This lets the pilot open the walls of ${short} more than it does now, never above the walls your phone signed. It changes only the schedule. Nothing moves on chain until the pilot follows it.` };
+    }
     case "Deploy": {
       const lines = i.init.assets.map((a, k) => { const t = tokenOf(a), p = i.init.policies[k]; const f = (n: string) => fmt(BigInt(n), t.decimals, t.places);
         return `${t.symbol}: ${f(p.perTxCap)} per payment, ${f(p.periodCap)} a day, ${f(p.floor)} kept in Savings`; });
@@ -116,6 +132,7 @@ export function openRequest(envelopeText: string, mnemonic: string, index = 0): 
 
 /** Phone: sign with the Safety key (ML-DSA-87) and build the exact calldata the relayer will send. */
 export async function signIntent(phone: UnifiedAccount, account: Address, i: Intent): Promise<Hex> {
+  if (i.kind === "PilotSchedule") throw new Error("A pilot schedule is approved with approveQueued, not sent to the chain.");
   if (i.kind === "Deploy") {
     if (i.init.safety.toLowerCase() !== (phone.evm as string).toLowerCase()) throw new Error("This account would be guarded by a different phone.");
     const init = initArgs(i.init);
@@ -146,6 +163,7 @@ export async function approveQueued(q: { id: string; account: Address; envelope:
   step("Opening the request", 0.1);
   const body = openRequest(q.envelope, mnemonic);
   if (body.account.toLowerCase() !== q.account.toLowerCase()) throw new Error("This request doesn't match its account. Don't approve it.");
+  if (body.intent.kind === "PilotSchedule") return approveSchedule(q.id, body.account, body.intent.settings, phone, step);
   step("Signing with your post-quantum key", 0.35);
   const data = await signIntent(phone, body.account, body.intent);
   step("Sending to QoreChain", 0.6);
@@ -156,6 +174,22 @@ export async function approveQueued(q: { id: string; account: Address; envelope:
   await fetch(`/api/requests?id=${q.id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "approved", txHash: j.txHash }) }).catch(() => undefined);
   step("Approved", 1);
   return j.txHash as string;
+}
+
+/** Phone: approve a looser pilot schedule. Signed off chain; the server checks it against this phone's on-chain key. Returns "" (no transaction). */
+async function approveSchedule(id: string, account: Address, settings: PilotSettingsJson, phone: UnifiedAccount, step: (l: string, p: number) => void): Promise<string> {
+  step("Signing with your post-quantum key", 0.35);
+  const nonce = BigInt(Date.now());
+  const deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
+  const phoneSig = toHex(pqcSign(phone.pqc.secretKey, pilotScheduleDigestBytes(account, settings, nonce, deadline)));
+  step("Sending to the pilot", 0.6);
+  const r = await fetch("/api/pilot", { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ account, change: { kind: "approve-settings", settings, nonce: nonce.toString(), deadline: deadline.toString(), phoneSig } }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.ok) throw new Error(j.error ?? "The pilot refused the approval. Nothing changed.");
+  await fetch(`/api/requests?id=${id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "approved", offchain: true }) }).catch(() => undefined);
+  step("Approved", 1);
+  return "";
 }
 
 /** Phone: sign and relay an immediate action of its own (seal, veto a replacement, break-glass). */

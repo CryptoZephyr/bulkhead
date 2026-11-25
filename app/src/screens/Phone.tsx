@@ -474,10 +474,12 @@ function OutcomeCard({ outcome, onDismiss }: { outcome: Outcome; onDismiss: () =
       {outcome.kind === "approved" ? (
         <>
           <StatusMark kind="paid" word="Approved." />
-          <p role="status">The chain accepted it.</p>
-          <a className="hash-link" href={`${EXPLORER_TX}${outcome.txHash}`} target="_blank" rel="noreferrer">
-            <span className="hash mono">{`${outcome.txHash.slice(0, 8)}…${outcome.txHash.slice(-6)}`}</span>QoreScan
-          </a>
+          {outcome.txHash ? (<>
+            <p role="status">The chain accepted it.</p>
+            <a className="hash-link" href={`${EXPLORER_TX}${outcome.txHash}`} target="_blank" rel="noreferrer">
+              <span className="hash mono">{`${outcome.txHash.slice(0, 8)}…${outcome.txHash.slice(-6)}`}</span>QoreScan
+            </a>
+          </>) : <p role="status">The pilot checked your phone's key on chain and took the new schedule.</p>}
         </>
       ) : (
         <p role="status" className="refused">Refused and sealed. Nothing can leave the account until you unseal it from this phone.</p>

@@ -33,3 +33,12 @@ test("an approval needs its transaction hash, and settles only once", async () =
   await settle(s, r.id, { status: "approved", txHash: HASH }, 1);
   await assert.rejects(() => settle(s, r.id, { status: "refused" }, 2), /already approved/);
 });
+
+test("an off-chain approval settles without a hash only when it says so", async () => {
+  const s = new MemoryStore();
+  const r = await submit(s, ok, 0);
+  await assert.rejects(() => settle(s, r.id, { status: "approved", offchain: false }, 1), /transaction hash/);
+  await settle(s, r.id, { status: "approved", offchain: true }, 1);
+  assert.equal((await get(s, r.id, 2))?.status, "approved");
+  assert.equal((await get(s, r.id, 2))?.txHash, undefined);
+});

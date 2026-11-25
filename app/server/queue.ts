@@ -59,11 +59,13 @@ export async function get(store: Store, id: string, now = Date.now()): Promise<Q
 }
 
 /** The phone reports what happened. Approval is proven by the chain transaction, not by this record. */
-export async function settle(store: Store, id: string, outcome: { status: "approved" | "refused"; txHash?: string }, now = Date.now()) {
+/** An off-chain approval (a pilot schedule the server checked against the phone's on-chain key) passes offchain: true and has no hash. */
+export async function settle(store: Store, id: string, outcome: { status: "approved" | "refused"; txHash?: string; offchain?: boolean }, now = Date.now()) {
   const r = await get(store, id, now);
   if (!r) throw new BadRequest("No such request.");
   if (r.status !== "waiting") throw new BadRequest(`This request is already ${r.status}.`);
-  if (outcome.status === "approved" && !/^0x[0-9a-fA-F]{64}$/.test(outcome.txHash ?? "")) throw new BadRequest("An approval needs its transaction hash.");
+  const offchain = outcome.status === "approved" && outcome.offchain === true && outcome.txHash === undefined;
+  if (outcome.status === "approved" && !offchain && !/^0x[0-9a-fA-F]{64}$/.test(outcome.txHash ?? "")) throw new BadRequest("An approval needs its transaction hash.");
   await store.put({ ...r, status: outcome.status, txHash: outcome.txHash });
 }
 

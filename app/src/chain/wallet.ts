@@ -1,7 +1,7 @@
 // The laptop's everyday key. It lives only in this browser, encrypted at rest with the user's
 // password (PBKDF2-SHA256 600k iterations, AES-GCM). It can spend inside the walls and tighten
 // them. It can never widen a wall: that needs the Safety key on the phone.
-import { deriveUnifiedAccount, generateMnemonic, EthNativeSigner, openEvmWindowMsg, type UnifiedAccount } from "@qorechain/sdk";
+import { deriveUnifiedAccount, generateMnemonic, EthNativeSigner, openEvmWindowMsg, buildRegisterPqcKeyMsg, signProofOfPossession, fetchPqcStatus, type UnifiedAccount } from "@qorechain/sdk";
 import { REST, CHAIN_ID } from "./config";
 
 const STORE = "bh-everyday-key";
@@ -72,8 +72,19 @@ async function sequence(addr: string) {
 }
 
 /** Opens a short EVM window scoped to the Bulkhead account only. Never lists a token. */
+/** Hybrid-signed transactions need this key's post-quantum half registered, with proof of possession. Done once, on first use. */
+async function ensurePqcRegistered(me: UnifiedAccount) {
+  const st = await fetchPqcStatus({ rest: REST, address: me.cosmos }).catch(() => ({ registered: false }) as { registered: boolean });
+  if (st.registered && (st as { proven?: boolean }).proven !== false) return;
+  const pop = signProofOfPossession({ chainId: CHAIN_ID, account: me.cosmos, keypair: me.pqc });
+  const signer = new EthNativeSigner(me, { signMode: "classical", rest: REST });
+  const r = await signer.signAndBroadcast(broadcaster, { ...(await sequence(me.cosmos)), chainId: CHAIN_ID, messages: [buildRegisterPqcKeyMsg(me.cosmos, { pqcKeypair: me.pqc, proofOfPossession: pop })], memo: "", fee: { amount: [{ denom: "uqor", amount: "80000" }], gas: "400000" } });
+  if (r.code !== 0) throw new Error(`The chain refused this laptop's post-quantum key (code ${r.code}).`);
+}
+
 export async function openScopedWindow(accountAddress: string, opts = { blocks: 300, maxTxs: 3, maxValueUqor: "600000" }) {
   const me = current();
+  await ensurePqcRegistered(me);
   const signer = new EthNativeSigner(me, { signMode: "hybrid", rest: REST });
   const s = await sequence(me.cosmos);
   const msg = openEvmWindowMsg({ sender: me.cosmos, blocks: opts.blocks, maxTxs: opts.maxTxs, maxValue: opts.maxValueUqor, allowedTargets: [accountAddress.toLowerCase()] });

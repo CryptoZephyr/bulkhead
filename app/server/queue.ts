@@ -62,7 +62,8 @@ export async function get(store: Store, id: string, now = Date.now()): Promise<Q
 /** What settle checks before it changes a request. Injected, so unit tests make no network calls. */
 export interface Proofs {
   /** Whether this mined transaction succeeded and went to the account (or a listed factory, for a Deploy). */
-  txApproves(account: string, txHash: string): Promise<boolean>;
+  /** The transaction must be mined after the request was created (`notBeforeMs`), so an older one can't settle it. */
+  txApproves(account: string, txHash: string, notBeforeMs: number): Promise<boolean>;
   /** Whether the account's phone signed the refusal of this request. */
   phoneRefused(account: string, requestId: string, nonce: bigint, deadline: bigint, phoneSig: string): Promise<boolean>;
   /** Claims a key once (single-use nonces and transactions). */
@@ -93,7 +94,7 @@ export async function settle(store: Store, id: string, outcome: SettleBody, proo
   if (outcome.status === "approved") {
     const txHash = String(outcome.txHash ?? "");
     if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) throw new BadRequest("An approval needs its transaction hash.");
-    if (!(await proofs.txApproves(r.account, txHash).catch(() => false))) throw new BadRequest(NOT_THIS_TX);
+    if (!(await proofs.txApproves(r.account, txHash, r.createdAt).catch(() => false))) throw new BadRequest(NOT_THIS_TX);
     // One transaction settles one request.
     if (!(await proofs.once(`bh:used:tx:${txHash.toLowerCase()}`, 3 * 24 * 3600))) throw new BadRequest(NOT_THIS_TX);
     await store.put({ ...r, status: "approved", txHash });
@@ -118,10 +119,13 @@ export async function settle(store: Store, id: string, outcome: SettleBody, proo
 /** The real checks: testnet reads and the shared store. FACTORY_ADDRESS may list several factories. */
 export function liveProofs(): Proofs {
   return {
-    async txApproves(account, txHash) {
+    async txApproves(account, txHash, notBeforeMs) {
       const { pub } = await import("./relayer.js");
       const hash = txHash as `0x${string}`;
       const [receipt, tx] = await Promise.all([pub.getTransactionReceipt({ hash }), pub.getTransaction({ hash })]);
+      const block = await pub.getBlock({ blockNumber: receipt.blockNumber });
+      // A minute of slack for clock drift between this server and the chain.
+      if (Number(block.timestamp) * 1000 < notBeforeMs - 60_000) return false;
       return txGoesTo(receipt.status, tx.to, account, process.env.FACTORY_ADDRESS ?? "");
     },
     async phoneRefused(account, requestId, nonce, deadline, phoneSig) {

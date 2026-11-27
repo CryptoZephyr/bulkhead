@@ -9,7 +9,7 @@ import accountAbi from "./abi/BulkheadAccount.json";
 import factoryAbi from "./abi/BulkheadFactory.json";
 import { pub, readAccount, fmt } from "./account";
 import { CHAIN_ID, DEPLOYMENT, NATIVE, TOKENS } from "./config";
-import { pilotScheduleDigestBytes, pilotReopenDigestBytes, type PilotSettingsJson } from "./pilotSchedule";
+import { pilotScheduleDigestBytes, pilotReopenDigestBytes, refuseDigestBytes, type PilotSettingsJson } from "./pilotSchedule";
 
 export const PURPOSE = "bulkhead-request-v1";
 
@@ -196,10 +196,10 @@ async function approveSchedule(id: string, account: Address, settings: PilotSett
   const phoneSig = toHex(pqcSign(phone.pqc.secretKey, pilotScheduleDigestBytes(account, settings, nonce, deadline)));
   step("Sending to the pilot", 0.6);
   const r = await fetch("/api/pilot", { method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ account, change: { kind: "approve-settings", settings, nonce: nonce.toString(), deadline: deadline.toString(), phoneSig } }) });
+    body: JSON.stringify({ account, change: { kind: "approve-settings", settings, nonce: nonce.toString(), deadline: deadline.toString(), phoneSig, requestId: id } }) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok || !j.ok) throw new Error(j.error ?? "The pilot refused the approval. Nothing changed.");
-  await fetch(`/api/requests?id=${id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "approved", offchain: true }) }).catch(() => undefined);
+  // The server marks the queued request approved itself, once it has checked the signature.
   step("Approved", 1);
   return "";
 }
@@ -213,12 +213,22 @@ async function approveReopen(id: string, account: Address, trippedAt: number, ph
   const phoneSig = toHex(pqcSign(phone.pqc.secretKey, pilotReopenDigestBytes(account, trippedAt, nonce, deadline)));
   step("Sending to the pilot", 0.6);
   const r = await fetch("/api/pilot", { method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ account, change: { kind: "approve-reopen", nonce: nonce.toString(), deadline: deadline.toString(), phoneSig } }) });
+    body: JSON.stringify({ account, change: { kind: "approve-reopen", nonce: nonce.toString(), deadline: deadline.toString(), phoneSig, requestId: id } }) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok || !j.ok) throw new Error(j.error ?? "The pilot refused the approval. Nothing changed.");
-  await fetch(`/api/requests?id=${id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "approved", offchain: true }) }).catch(() => undefined);
   step("Approved", 1);
   return "";
+}
+
+/** Phone: refuse one queued request. Signed off chain for that request id; the server checks it against this phone's on-chain key. No gas. */
+export async function refuseQueued(q: { id: string; account: Address }, phone: UnifiedAccount): Promise<void> {
+  const nonce = BigInt(Date.now());
+  const deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
+  const phoneSig = toHex(pqcSign(phone.pqc.secretKey, refuseDigestBytes(q.account, q.id, nonce, deadline)));
+  const r = await fetch(`/api/requests?id=${encodeURIComponent(q.id)}`, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ status: "refused", nonce: nonce.toString(), deadline: deadline.toString(), phoneSig }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error ?? "The queue didn't take it.");
 }
 
 /** Phone: sign and relay an immediate action of its own (seal, veto a replacement, break-glass). */

@@ -8,6 +8,8 @@
 //        (no laptop signature: the phone's ML-DSA-87 signature over pilotScheduleDigest, checked on chain)
 //   POST /api/pilot { account, change: { kind: "approve-reopen", nonce, deadline, phoneSig } }
 //        (phone only: reopens a wall the tripwire closed; the digest, pilotReopenDigest, is bound to that trip's time)
+//   Both phone approvals may carry requestId: once the signature checks out, the server marks that queued request approved.
+//   Laptop-signed changes are single-use: the same signature is refused a second time (server/replay.ts).
 //   POST /api/pilot?tick=1 { account }    -> run the tripwire, then bring the chain in line with the schedule
 //        (anyone may ask; it only follows the owner's schedule and tripwire)
 //   Tripwire: each tick reads the account's Spent and HeldByPilot events since lastCheckedBlock. If tripwire()
@@ -21,7 +23,10 @@ import { verifyMessage, type Address, type Hex } from "viem";
 import accountAbi from "../src/chain/abi/BulkheadAccount.json" with { type: "json" };
 import { pub } from "../server/relayer.js";
 import { plan, planRequest, sameAsChain, validate, isQuiet, isTightening, tripwire, CLOSED, BURST_MS, DEFAULTS, BadPilot, type PilotSettings, type LiveTarget, type TripEvent } from "../server/pilot.js";
-import { readLatest, writeVersion, folders, hasStore } from "../server/blobjson.js";
+import { readLatest, writeVersion, folders, hasStore, setOnce } from "../server/blobjson.js";
+import { firstUse, REPLAYED } from "../server/replay.js";
+import { settle, liveProofs } from "../server/queue.js";
+import { requestStore } from "./requests.js";
 import { phoneSignedSchedule, phoneSignedReopen } from "../server/phoneSig.js";
 import { canonicalSettings, PILOT_SCHEDULE_MAX_AHEAD_MS, type PilotSettingsJson } from "../src/chain/pilotSchedule.js";
 import { readChain, applyTarget, pilotKey, readTripEvents, type ChainView } from "../server/pilotChain.js";
@@ -178,8 +183,18 @@ async function approveReopen(account: string, c: { [k: string]: unknown }) {
   book.usedNonces = [...(book.usedNonces ?? []), nonce.toString()].slice(-50);
   log(book, { kind: "reopen", reason: "Reopened on your phone" });
   await putBook(book);
+  await settleQueued(account, c.requestId);
   const r = await tickAfterSave(account, chain, book);
   return Response.json({ ok: true, changed: r.changed, reason: r.reason, log: book.log });
+}
+
+/**
+ * The phone's approval was checked above, so the server marks its queued request approved (no transaction).
+ * Clients can't do this themselves. Best effort: the approval already took effect.
+ */
+async function settleQueued(account: string, requestId: unknown) {
+  if (typeof requestId !== "string" || !requestId || requestId.length > 100) return;
+  await settle(requestStore(), requestId, { status: "approved", offchain: true }, liveProofs(), Date.now(), { account }).catch(() => undefined);
 }
 
 // Act on the settings just saved, not on a re-read copy (storage reads can lag a write).
@@ -218,6 +233,7 @@ async function approveSettings(account: string, c: { [k: string]: unknown }) {
   book.usedNonces = [...(book.usedNonces ?? []), nonce.toString()].slice(-50);
   log(book, { kind: "settings", reason: `Approved on your phone: ${describeSettings(s)}` });
   await putBook(book);
+  await settleQueued(account, c.requestId);
   const r = await tickAfterSave(account, chain, book);
   return Response.json({ ok: true, changed: r.changed, reason: r.reason, log: book.log });
 }
@@ -291,6 +307,8 @@ async function handler(req: Request): Promise<Response> {
     const laptop = (await pub.readContract({ address: account as Address, abi: accountAbi, functionName: "everyday" })) as Address;
     if (!(await verifyMessage({ address: laptop, message: pilotMessage(account, body.change, body.at), signature: body.signature ?? "0x" }).catch(() => false)))
       return Response.json({ error: "This change wasn't signed by the account's laptop key." }, { status: 401 });
+    // No store (local runs): no replay guard.
+    if (hasStore() && !(await firstUse(body.signature!, setOnce))) throw new BadPilot(REPLAYED);
 
     const book = await getBook(account);
     const chain = await readChain(account as Address);

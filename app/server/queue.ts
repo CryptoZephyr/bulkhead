@@ -2,7 +2,7 @@
 // The server only ever holds ciphertext: every request body is a QoreSeal envelope encrypted
 // to the phone account's ML-KEM key, so a breached server can't read or forge a request.
 // Storage is pluggable: memory for tests, a JSON file for local dev, a hosted store at deploy time.
-import { hasStore } from "./blobjson.js";
+import { hasStore, setOnce, memoryOnce } from "./blobjson.js";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 
 export interface QueuedRequest {
@@ -59,15 +59,89 @@ export async function get(store: Store, id: string, now = Date.now()): Promise<Q
   return r && r.status === "waiting" && r.expiresAt < now ? { ...r, status: "expired" } : r;
 }
 
-/** The phone reports what happened. Approval is proven by the chain transaction, not by this record. */
-/** An off-chain approval (a pilot schedule the server checked against the phone's on-chain key) passes offchain: true and has no hash. */
-export async function settle(store: Store, id: string, outcome: { status: "approved" | "refused"; txHash?: string; offchain?: boolean }, now = Date.now()) {
+/** What settle checks before it changes a request. Injected, so unit tests make no network calls. */
+export interface Proofs {
+  /** Whether this mined transaction succeeded and went to the account (or a listed factory, for a Deploy). */
+  /** The transaction must be mined after the request was created (`notBeforeMs`), so an older one can't settle it. */
+  txApproves(account: string, txHash: string, notBeforeMs: number): Promise<boolean>;
+  /** Whether the account's phone signed the refusal of this request. */
+  phoneRefused(account: string, requestId: string, nonce: bigint, deadline: bigint, phoneSig: string): Promise<boolean>;
+  /** Claims a key once (single-use nonces and transactions). */
+  once(k: string, ttlSeconds: number): Promise<boolean>;
+}
+
+export const REFUSE_MAX_AHEAD_S = 15 * 60;
+export const NOT_THIS_TX = "That transaction doesn't approve this request.";
+
+export interface SettleBody { status?: unknown; txHash?: unknown; offchain?: unknown; nonce?: unknown; deadline?: unknown; phoneSig?: unknown }
+
+/**
+ * The phone reports what happened, with proof:
+ *   approved + txHash: the chain transaction must have succeeded and gone to this account (or the factory).
+ *   refused: the phone's ML-DSA-87 signature over refuseDigest, single-use nonce, deadline at most 15 minutes ahead.
+ *   approved offchain: only the server (functions/pilot.ts, after it checked the phone's signature) passes `internal`.
+ */
+export async function settle(store: Store, id: string, outcome: SettleBody, proofs: Proofs, now = Date.now(), internal?: { account: string }) {
   const r = await get(store, id, now);
   if (!r) throw new BadRequest("No such request.");
   if (r.status !== "waiting") throw new BadRequest(`This request is already ${r.status}.`);
-  const offchain = outcome.status === "approved" && outcome.offchain === true && outcome.txHash === undefined;
-  if (outcome.status === "approved" && !offchain && !/^0x[0-9a-fA-F]{64}$/.test(outcome.txHash ?? "")) throw new BadRequest("An approval needs its transaction hash.");
-  await store.put({ ...r, status: outcome.status, txHash: outcome.txHash });
+
+  if (outcome.status === "approved" && outcome.offchain !== undefined) {
+    if (!internal || outcome.offchain !== true || internal.account.toLowerCase() !== r.account) throw new BadRequest("Only the server can record an approval without a transaction.");
+    await store.put({ ...r, status: "approved" });
+    return;
+  }
+  if (outcome.status === "approved") {
+    const txHash = String(outcome.txHash ?? "");
+    if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) throw new BadRequest("An approval needs its transaction hash.");
+    if (!(await proofs.txApproves(r.account, txHash, r.createdAt).catch(() => false))) throw new BadRequest(NOT_THIS_TX);
+    // One transaction settles one request.
+    if (!(await proofs.once(`bh:used:tx:${txHash.toLowerCase()}`, 3 * 24 * 3600))) throw new BadRequest(NOT_THIS_TX);
+    await store.put({ ...r, status: "approved", txHash });
+    return;
+  }
+  if (outcome.status === "refused") {
+    let nonce: bigint, deadline: bigint;
+    try { nonce = BigInt(String(outcome.nonce)); deadline = BigInt(String(outcome.deadline)); } catch { throw new BadRequest("A refusal needs your phone's signature."); }
+    const sig = String(outcome.phoneSig ?? "");
+    if (!/^0x[0-9a-fA-F]+$/.test(sig)) throw new BadRequest("A refusal needs your phone's signature.");
+    const nowS = BigInt(Math.floor(now / 1000));
+    if (deadline < nowS) throw new BadRequest("This refusal has expired. Refuse it again on your phone.");
+    if (deadline > nowS + BigInt(REFUSE_MAX_AHEAD_S)) throw new BadRequest("This refusal's deadline is too far ahead.");
+    if (!(await proofs.phoneRefused(r.account, r.id, nonce, deadline, sig).catch(() => false))) throw new BadRequest("This refusal wasn't signed by the account's phone.");
+    if (!(await proofs.once(`bh:used:refuse:${r.account}:${nonce}`, 2 * REFUSE_MAX_AHEAD_S))) throw new BadRequest("This refusal was already used.");
+    await store.put({ ...r, status: "refused" });
+    return;
+  }
+  throw new BadRequest("status must be approved or refused.");
+}
+
+/** The real checks: testnet reads and the shared store. FACTORY_ADDRESS may list several factories. */
+export function liveProofs(): Proofs {
+  return {
+    async txApproves(account, txHash, notBeforeMs) {
+      const { pub } = await import("./relayer.js");
+      const hash = txHash as `0x${string}`;
+      const [receipt, tx] = await Promise.all([pub.getTransactionReceipt({ hash }), pub.getTransaction({ hash })]);
+      const block = await pub.getBlock({ blockNumber: receipt.blockNumber });
+      // A minute of slack for clock drift between this server and the chain.
+      if (Number(block.timestamp) * 1000 < notBeforeMs - 60_000) return false;
+      return txGoesTo(receipt.status, tx.to, account, process.env.FACTORY_ADDRESS ?? "");
+    },
+    async phoneRefused(account, requestId, nonce, deadline, phoneSig) {
+      const { phoneSignedRefuse } = await import("./phoneSig.js");
+      return phoneSignedRefuse(account as `0x${string}`, requestId, nonce, deadline, phoneSig as `0x${string}`);
+    },
+    once: (k, ttl) => (hasStore() ? setOnce(k, ttl) : localOnce(k, ttl)),
+  };
+}
+const localOnce = memoryOnce();
+
+/** Pure part of txApproves: a successful transaction to the account, or to one of the listed factories. */
+export function txGoesTo(status: string, to: string | null | undefined, account: string, factories: string): boolean {
+  if (status !== "success" || !to) return false;
+  const t = to.toLowerCase();
+  return t === account.toLowerCase() || factories.split(",").map((f) => f.trim().toLowerCase()).filter(Boolean).includes(t);
 }
 
 /** Vercel Blob: one JSON object per request. Requests hold only ciphertext, so public blob URLs expose nothing readable. */

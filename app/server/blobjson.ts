@@ -28,6 +28,22 @@ async function pipeline(commands: (string | number)[][]): Promise<void> {
   if (!r.ok || bad) throw new Error(`Storage refused a write: ${bad?.error ?? r.status}`);
 }
 
+/** Claims `k` once (SET k 1 NX EX ttl): true the first time, false while the claim lasts. For single-use nonces and signatures. */
+export async function setOnce(k: string, ttlSeconds: number): Promise<boolean> {
+  return (await redis<string | null>(["SET", k, "1", "NX", "EX", ttlSeconds])) === "OK";
+}
+
+/** The same claim in memory, for local runs and tests. */
+export function memoryOnce(): (k: string, ttlSeconds: number) => Promise<boolean> {
+  const seen = new Map<string, number>();
+  return async (k, ttlSeconds) => {
+    const now = Date.now();
+    if ((seen.get(k) ?? 0) > now) return false;
+    seen.set(k, now + ttlSeconds * 1000);
+    return true;
+  };
+}
+
 const split = (folder: string) => { const i = folder.indexOf("/"); return { prefix: folder.slice(0, i), id: folder.slice(i + 1) }; };
 const key = (folder: string) => `bh:${folder}`;
 const index = (prefix: string) => `bh:index:${prefix}`;

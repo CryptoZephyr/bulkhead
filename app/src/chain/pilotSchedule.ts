@@ -45,3 +45,17 @@ export function pilotReopenDigest(account: Address, trippedAt: number, nonce: bi
 
 export const pilotReopenDigestBytes = (account: Address, trippedAt: number, nonce: bigint, deadline: bigint): Uint8Array =>
   hexToBytes(pilotReopenDigest(account, trippedAt, nonce, deadline));
+
+// The phone refuses one queued request. The digest is bound to that request's id.
+export const REFUSE_DOMAIN = "bulkhead-refuse-v1";
+
+/** keccak256(abi.encode("bulkhead-refuse-v1", 9800, account, keccak256(utf8(requestId)), nonce, deadline)). Deadline is unix seconds. */
+export function refuseDigest(account: Address, requestId: string, nonce: bigint, deadline: bigint): Hex {
+  return keccak256(encodeAbiParameters(
+    [{ type: "string" }, { type: "uint256" }, { type: "address" }, { type: "bytes32" }, { type: "uint256" }, { type: "uint256" }],
+    [REFUSE_DOMAIN, PILOT_SCHEDULE_CHAIN_ID, account, keccak256(stringToHex(requestId)), nonce, deadline],
+  ));
+}
+
+export const refuseDigestBytes = (account: Address, requestId: string, nonce: bigint, deadline: bigint): Uint8Array =>
+  hexToBytes(refuseDigest(account, requestId, nonce, deadline));

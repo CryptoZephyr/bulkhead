@@ -22,7 +22,8 @@ export class Refused extends Error {}
 /** Which call this is, or a refusal. Pure, so it is unit-tested. */
 export async function classify(to: Address, data: Hex, factory: Address, isAccount: (a: Address) => Promise<boolean>): Promise<string> {
   if (to.toLowerCase() === factory.toLowerCase()) {
-    const { functionName } = decodeFunctionData({ abi: factoryAbi, data });
+    let functionName: string;
+    try { functionName = decodeFunctionData({ abi: factoryAbi, data }).functionName; } catch { throw new Refused("Unknown call."); }
     if (!FACTORY_CALLS.has(functionName)) throw new Refused(`The relayer doesn't send ${functionName} to the factory.`);
     return functionName;
   }

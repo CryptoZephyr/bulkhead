@@ -75,7 +75,8 @@ async function sequence(addr: string) {
 /** Hybrid-signed transactions need this key's post-quantum half registered, with proof of possession. Done once, on first use. */
 async function ensurePqcRegistered(me: UnifiedAccount) {
   const st = await fetchPqcStatus({ rest: REST, address: me.cosmos }).catch(() => ({ registered: false }) as { registered: boolean });
-  if (st.registered && (st as { proven?: boolean }).proven !== false) return;
+  const proven = (st as { possessionProven?: boolean; proven?: boolean }).possessionProven ?? (st as { proven?: boolean }).proven;
+  if (st.registered && proven !== false) return;
   const pop = signProofOfPossession({ chainId: CHAIN_ID, account: me.cosmos, keypair: me.pqc });
   const signer = new EthNativeSigner(me, { signMode: "classical", rest: REST });
   const r = await signer.signAndBroadcast(broadcaster, { ...(await sequence(me.cosmos)), chainId: CHAIN_ID, messages: [buildRegisterPqcKeyMsg(me.cosmos, { pqcKeypair: me.pqc, proofOfPossession: pop })], memo: "", fee: { amount: [{ denom: "uqor", amount: "80000" }], gas: "400000" } });

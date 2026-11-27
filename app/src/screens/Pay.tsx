@@ -9,6 +9,9 @@ import { actions } from "../chain/actions";
 import { ActionButton } from "../ui/Button";
 import { StatusMark } from "../ui/Status";
 import "./pay.css";
+import { UnlockPlate } from "../ui/Unlock";
+import { PhoneStatus } from "../ui/PhoneStatus";
+import { isUnlocked } from "../chain/wallet";
 
 const T = TOKENS.fUSD;
 // The user's own account. App screens render only once setup has created one.
@@ -71,6 +74,8 @@ export function PayScreen() {
   const [amountText, setAmountText] = useState("");
   const [recent, setRecent] = useState<string[]>([]);
   const [receipt, setReceipt] = useState<{ to: string; amount: bigint; txHash: string } | null>(null);
+  const [asked, setAsked] = useState<{ id: string; key: string } | null>(null);
+  const [, setTick] = useState(0);
 
   useEffect(() => {
     let on = true;
@@ -94,6 +99,7 @@ export function PayScreen() {
 
   return (
     <div className="pay-grid">
+      {!isUnlocked() && <UnlockPlate why="Paying is signed by your laptop key." onUnlocked={() => setTick((n) => n + 1)} />}
       <section className="plate pay-form" aria-label="Payment">
         <div className="pay-from">
           <span className="label">Paying from</span>
@@ -183,18 +189,20 @@ export function PayScreen() {
             Pay
           </ActionButton>
         )}
-        {acct && addrValid && amt !== null && check && !check.inside && (
+        {acct && addrValid && amt !== null && check && !check.inside && asked?.key !== `${payee}:${amt}` && (
           <ActionButton
             key="ask"
             block
             run={async (step) => {
-              await actions.requestWiden(myAddr(), { kind: "Spend", asset: TOKENS.fUSD.address, to: payee as `0x${string}`, amount: String(amt) }, step);
+              const { requestId } = await actions.requestWiden(myAddr(), { kind: "Spend", asset: TOKENS.fUSD.address, to: payee as `0x${string}`, amount: String(amt) }, step);
+              setAsked({ id: requestId, key: `${payee}:${amt}` });
               return "Sent to your phone";
             }}
           >
             Ask my phone
           </ActionButton>
         )}
+        {asked && <PhoneStatus requestId={asked.id} what="this payment" />}
         {err && <p role="alert" className="field-error">{err}</p>}
       </section>
 

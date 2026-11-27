@@ -1,30 +1,59 @@
-// JSON records in Vercel Blob without overwriting. Overwriting a blob can serve the old copy from the
-// CDN for a while (seen on the live site), so every save is a new file under the record's folder and
-// a read takes the newest. Older versions are removed after a successful save, best effort.
-const VERSION = /\/(\d{13})-[0-9a-f]{8}\.json$/;
+// Server state in Upstash Redis (Vercel Marketplace), through its REST API: plain fetch, no extra
+// dependency. One key per record, so a write is visible to the next read at once (Vercel Blob served
+// stale copies and its list() quota suspended the store). Folders are Redis sets of record ids, so
+// the daily and five-minute runs can find every account without listing storage.
+//
+// The module keeps its old function names (readLatest, writeVersion, folders) so callers don't change.
 
+const url = () => process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
+const token = () => process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
+
+/** Whether shared storage is configured. Without it the functions fall back to memory (local runs). */
+export const hasStore = () => !!(url() && token());
+
+/** Records that only matter for a while expire on their own. */
+const TTL_SECONDS: Record<string, number> = { requests: 2 * 24 * 3600, pair: 3600 };
+
+async function redis<T>(command: (string | number)[]): Promise<T> {
+  const r = await fetch(url()!, { method: "POST", headers: { authorization: `Bearer ${token()}`, "content-type": "application/json" }, body: JSON.stringify(command) });
+  const j = (await r.json().catch(() => null)) as { result?: T; error?: string } | null;
+  if (!r.ok || !j || j.error) throw new Error(`Storage refused ${command[0]}: ${j?.error ?? r.status}`);
+  return j.result as T;
+}
+
+async function pipeline(commands: (string | number)[][]): Promise<void> {
+  const r = await fetch(`${url()}/pipeline`, { method: "POST", headers: { authorization: `Bearer ${token()}`, "content-type": "application/json" }, body: JSON.stringify(commands) });
+  const j = (await r.json().catch(() => null)) as { error?: string }[] | null;
+  const bad = Array.isArray(j) ? j.find((x) => x?.error) : { error: `status ${r.status}` };
+  if (!r.ok || bad) throw new Error(`Storage refused a write: ${bad?.error ?? r.status}`);
+}
+
+const split = (folder: string) => { const i = folder.indexOf("/"); return { prefix: folder.slice(0, i), id: folder.slice(i + 1) }; };
+const key = (folder: string) => `bh:${folder}`;
+const index = (prefix: string) => `bh:index:${prefix}`;
+
+/** The record at `folder` ("pilot/0xabc…"), or null. */
 export async function readLatest<T>(folder: string): Promise<T | null> {
-  const { list } = await import("@vercel/blob");
-  const { blobs } = await list({ prefix: `${folder}/` });
-  const newest = blobs.filter((b) => VERSION.test(b.pathname)).sort((a, b) => (a.pathname < b.pathname ? 1 : -1))[0];
-  if (!newest) return null;
-  return (await fetch(newest.url, { cache: "no-store" })).json() as Promise<T>;
+  const v = await redis<string | null>(["GET", key(folder)]);
+  return v ? (JSON.parse(v) as T) : null;
 }
 
+/** Saves the record and remembers its id under its prefix. */
 export async function writeVersion(folder: string, data: unknown): Promise<void> {
-  const { put, list, del } = await import("@vercel/blob");
-  const name = `${folder}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.json`;
-  await put(name, JSON.stringify(data), { access: "public", addRandomSuffix: false, contentType: "application/json", cacheControlMaxAge: 0 });
-  try {
-    const { blobs } = await list({ prefix: `${folder}/` });
-    const old = blobs.filter((b) => VERSION.test(b.pathname) && b.pathname < name).map((b) => b.url);
-    if (old.length > 1) await del(old.slice(0, -1));   // keep one previous version
-  } catch { /* cleanup only */ }
+  const { prefix, id } = split(folder);
+  const ttl = TTL_SECONDS[prefix];
+  await pipeline([
+    ttl ? ["SET", key(folder), JSON.stringify(data), "EX", ttl] : ["SET", key(folder), JSON.stringify(data)],
+    ["SADD", index(prefix), id],
+  ]);
 }
 
-/** Folders directly under a prefix, e.g. the accounts under "pilot". */
+/** Ids saved under a prefix, e.g. the accounts under "pilot". Ids whose record expired are dropped. */
 export async function folders(prefix: string): Promise<string[]> {
-  const { list } = await import("@vercel/blob");
-  const { blobs } = await list({ prefix: `${prefix}/` });
-  return [...new Set(blobs.map((b) => b.pathname.split("/")[1]).filter(Boolean))];
+  const ids = await redis<string[]>(["SMEMBERS", index(prefix)]);
+  if (!TTL_SECONDS[prefix] || ids.length === 0) return ids;
+  const alive = await redis<number[]>(["MGET", ...ids.map((id) => key(`${prefix}/${id}`))]) as unknown as (string | null)[];
+  const gone = ids.filter((_, i) => alive[i] === null);
+  if (gone.length) await redis(["SREM", index(prefix), ...gone]);
+  return ids.filter((_, i) => alive[i] !== null);
 }

@@ -21,7 +21,7 @@ import { verifyMessage, type Address, type Hex } from "viem";
 import accountAbi from "../src/chain/abi/BulkheadAccount.json" with { type: "json" };
 import { pub } from "../server/relayer.js";
 import { plan, planRequest, sameAsChain, validate, isQuiet, isTightening, tripwire, CLOSED, BURST_MS, DEFAULTS, BadPilot, type PilotSettings, type LiveTarget, type TripEvent } from "../server/pilot.js";
-import { readLatest, writeVersion, folders } from "../server/blobjson.js";
+import { readLatest, writeVersion, folders, hasStore } from "../server/blobjson.js";
 import { phoneSignedSchedule, phoneSignedReopen } from "../server/phoneSig.js";
 import { canonicalSettings, PILOT_SCHEDULE_MAX_AHEAD_MS, type PilotSettingsJson } from "../src/chain/pilotSchedule.js";
 import { readChain, applyTarget, pilotKey, readTripEvents, type ChainView } from "../server/pilotChain.js";
@@ -56,7 +56,7 @@ const CRON_BUDGET_MS = 40_000;
 
 // Storage: Vercel Blob in production, memory locally.
 const mem = new Map<string, Book>();
-const hasBlob = () => !!process.env.BLOB_READ_WRITE_TOKEN;
+const hasBlob = hasStore;
 async function getBook(a: string): Promise<Book> {
   a = a.toLowerCase();
   if (!hasBlob()) return structuredClone(mem.get(a) ?? { account: a, settings: null, log: [] });

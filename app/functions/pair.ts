@@ -3,7 +3,7 @@
 //   GET  /api/pair?sid=...                     phone reads them (and checks them against the QR)
 //   POST /api/pair?sid=... { envelope }        phone's sealed reply
 //   GET  /api/pair?sid=...&reply=1             laptop polls for it
-import { readLatest, writeVersion } from "../server/blobjson.js";
+import { readLatest, writeVersion, hasStore } from "../server/blobjson.js";
 import { MemoryPairs, startPair, laptopKeys, reply, replyOf, BadPair, type PairStore, type PairSession } from "../server/pair.js";
 
 export const config = { runtime: "nodejs" };
@@ -13,7 +13,7 @@ class BlobPairs implements PairStore {
   async put(s: PairSession) { await writeVersion(`pair/${s.sid}`, s); }
 }
 let store: PairStore | null = null;
-const theStore = () => (store ??= process.env.BLOB_READ_WRITE_TOKEN ? new BlobPairs() : new MemoryPairs());
+const theStore = () => (store ??= hasStore() ? new BlobPairs() : new MemoryPairs());
 
 async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url), sid = url.searchParams.get("sid") ?? "";

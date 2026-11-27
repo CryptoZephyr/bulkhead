@@ -2,6 +2,7 @@
 // The server only ever holds ciphertext: every request body is a QoreSeal envelope encrypted
 // to the phone account's ML-KEM key, so a breached server can't read or forge a request.
 // Storage is pluggable: memory for tests, a JSON file for local dev, a hosted store at deploy time.
+import { hasStore } from "./blobjson.js";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 
 export interface QueuedRequest {
@@ -83,7 +84,7 @@ export class BlobStore implements Store {
 }
 
 export function defaultStore(): Store {
-  if (process.env.BLOB_READ_WRITE_TOKEN) return new BlobStore();
+  if (hasStore()) return new BlobStore();
   if (process.env.QUEUE_FILE) return new FileStore(process.env.QUEUE_FILE);
   return new MemoryStore();
 }

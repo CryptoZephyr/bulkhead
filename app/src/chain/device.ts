@@ -54,7 +54,8 @@ export async function phoneReadiness(a: UnifiedAccount): Promise<{ funded: boole
   const pq = await fetchPqcStatus({ rest: REST, address: a.cosmos }).catch(() => ({ registered: false }) as { registered: boolean });
   const kem = await fetchKemKey({ rest: REST, address: a.cosmos }).then((k) => !!k.registered && !!k.publicKey?.length).catch(() => false);
   // The account requires a proven key, so "registered" alone isn't enough.
-  const proven = !!pq.registered && (pq as { proven?: boolean }).proven !== false;
+  const p = pq as { possessionProven?: boolean; proven?: boolean };
+  const proven = !!pq.registered && (p.possessionProven ?? p.proven) !== false;
   return { funded, pqProven: proven, kemRegistered: kem };
 }
 

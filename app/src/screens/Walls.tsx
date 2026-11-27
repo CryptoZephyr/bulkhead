@@ -9,6 +9,9 @@ import { actions } from "../chain/actions";
 import { ActionButton } from "../ui/Button";
 import { StatusMark } from "../ui/Status";
 import "./walls.css";
+import { UnlockPlate } from "../ui/Unlock";
+import { PendingPlate } from "../ui/Pending";
+import { isUnlocked } from "../chain/wallet";
 
 const T = TOKENS.fUSD;
 // The user's own account. App screens render only once setup has created one.
@@ -59,6 +62,7 @@ const HINT: Record<Key, (v: bigint) => string> = {
 };
 
 export function WallsScreen() {
+  const [, setTick] = useState(0);
   const [acct, setAcct] = useState<AccountView | null>(null);
   const [err, setErr] = useState("");
   const [form, setForm] = useState<Form | null>(null);
@@ -95,6 +99,8 @@ export function WallsScreen() {
 
   return (
     <div className="walls-grid">
+      {!isUnlocked() && <UnlockPlate why="Changing your walls is signed by your laptop key." onUnlocked={() => setTick((n) => n + 1)} />}
+      <PendingPlate account={myAddr()} />
       <section className="plate walls-now" aria-label="Everyday now">
         <span className="label">Everyday now</span>
         <p>Up to {money(now.perTxCap)} {T.symbol} per payment and {money(now.periodCap)} a day.</p>

@@ -191,3 +191,19 @@ These red-team results shaped the contracts. Transaction hashes were recorded sh
 | The ecrecover gate checks the contract that runs ecrecover, not the target | A token called through another contract could not verify the owner's permit, but any contract in the owner's window scope can verify the owner's ECDSA signatures from anyone's transaction | The account never uses ecrecover |
 | Fee loss inside a window is bounded | A leaked key burning gas in a window with maxValue 300,000 uqor lost 0.140625 QOR in total and was refused once the budget ran out | Windows are short and small: 300 blocks, 3 transactions, 0.6 QOR |
 | Chain spending rules hold on the EVM lane | An agent key with a rule of 10 per execution and 25 per day, only `transfer`, executed an 8 transfer and was blocked at 50 | The bill agent runs on its own account under a chain spending rule |
+
+## Storage moved to Redis (27 November, round 29)
+
+The Vercel Blob store `bulkhead-queue` was suspended on 27 November for exceeding the free plan's operations quota, because every read listed storage. This took down the approval queue, pairing, pilot settings and Bills. Nothing on chain was affected. Server state moved to Upstash Redis in PR #17, and the live site was tested at https://bulkhead-blush.vercel.app.
+
+| Step | Result | Transaction |
+|---|---|---|
+| Pairing start | 201 | |
+| Keys read back immediately | same keys | |
+| Reply | 200 | |
+| Second reply | refused, 400 | |
+| Reply read back | the reply that was sent | |
+| Pilot schedule saved on 0xE44f94756f274bb41522077Af66F8213733453C2 and read back immediately | quiet hours 12:00 to 14:00 | |
+| Scheduled pilot run | 1 account, 0 failed (it was 5 failed on the suspended store) | |
+
+The GitHub Actions pilot tick (every 5 minutes, `.github/workflows/pilot-tick.yml`) was run by hand on 27 November and succeeded.

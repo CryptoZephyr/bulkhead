@@ -1,5 +1,7 @@
 # Testnet deployments (qorechain-diana, EVM chain id 9800)
 
+Transactions are listed by their EVM hash. The QoreChain explorer opens on mainnet and finds transactions only by their native hash, so choose **Testnet** at the top of the explorer, then use the explorer link beside each hash.
+
 | Contract | Address | From |
 |---|---|---|
 | BulkheadFactory (current) | 0x3df113cf4a7ddb5d22eed33f8de430d531026355 | phase-1-contracts 6c7778a |
@@ -43,8 +45,8 @@ Final balances: payee 17, agent account 13, Bulkhead 70 fUSD (untouched by the a
 
 | Step | Result | Gas | Transaction |
 |---|---|---|---|
-| Everyday spend 2.00 fUSD, window scoped to the account | paid | 119,277 | 0x83af506eee4d723a1829af15d42f295ee579b807d96c12821bc7d38f4243da73 |
-| Stolen key spends 6.00 fUSD, over the 5.00 per-payment cap | tx success, sealed, nothing moved | 109,584 | 0x687fb72d3e47b14a2f105d5aabdff640f2486508f7fd1fcb8ac4c1f51bb6878b |
+| Everyday spend 2.00 fUSD, window scoped to the account | paid | 119,277 | 0x83af506eee4d723a1829af15d42f295ee579b807d96c12821bc7d38f4243da73 ([explorer](https://explore.qore.network/tx/489F62A2CFF57C9F390626A6B5219414397AAF2F4E65C015BE62180079B0C82B)) |
+| Stolen key spends 6.00 fUSD, over the 5.00 per-payment cap | tx success, sealed, nothing moved | 109,584 | 0x687fb72d3e47b14a2f105d5aabdff640f2486508f7fd1fcb8ac4c1f51bb6878b ([explorer](https://explore.qore.network/tx/52E66F3E23B4A78F7BA5226ABD93687A565E19F256F4DB29E34A92666EF6889C)) |
 
 The demo account now holds 68 fUSD, is sealed, and its blast radius is 0. It unseals only through a Safety-key widening after the delay.
 
@@ -58,15 +60,15 @@ The demo account now holds 68 fUSD, is sealed, and its blast radius is 0. It uns
 
 | Step | Result | Transaction |
 |---|---|---|
-| Deploy factory v2 | OK, gas 3,674,293 | 0xac4965eab7721876759e1af2e8c59b8855b9c446c7d75c2f30cc3d91b06e685b |
-| Deploy demo account v2, real ML-DSA-87 | OK, gas 2,767,666 | 0x5490692bd52aa0c07f62710cf99b7990caa1a7a7878b022e4d9f9482147dc32d |
+| Deploy factory v2 | OK, gas 3,674,293 | 0xac4965eab7721876759e1af2e8c59b8855b9c446c7d75c2f30cc3d91b06e685b ([explorer](https://explore.qore.network/tx/CA266CAA0C1B3C05FDD0AA22F2307AC8BAB9FD90B148389F1A4DAA679254D7B2)) |
+| Deploy demo account v2, real ML-DSA-87 | OK, gas 2,767,666 | 0x5490692bd52aa0c07f62710cf99b7990caa1a7a7878b022e4d9f9482147dc32d ([explorer](https://explore.qore.network/tx/42D8C2F20109742919C68D02EC170F76CA87328BC7B92697324F70BF97C365E9)) |
 | Forged phone seal | refused, BadSafetySignature | |
-| Phone seals on its own | sealed | 0x11a44d14473550395c10f9073a46e2acdb193dc6e3bb6c2e77b8fd38aba0fb95 |
-| Laptop proposes a new phone | sealed, wait started | 0xbe82ce109c27965421247380565105b1ad48d2e82cc3f1805b33eadbea503c34 |
-| Old phone vetoes it | cancelled | 0x442daf6d6409c1698c308684031d0cb31a39d51a3cedc6429547635efba3a68f |
-| Laptop proposes again (old phone lost) | wait started | 0xa23dc1777eff378572e5aee6e14be7d54a8071d981e26edbec7d6b1a5eb9f229 |
+| Phone seals on its own | sealed | 0x11a44d14473550395c10f9073a46e2acdb193dc6e3bb6c2e77b8fd38aba0fb95 ([explorer](https://explore.qore.network/tx/5F3CFB86696E581BC5D8332689B6E22C050E40D5DDE915FBE96AA0B78108C2B2)) |
+| Laptop proposes a new phone | sealed, wait started | 0xbe82ce109c27965421247380565105b1ad48d2e82cc3f1805b33eadbea503c34 ([explorer](https://explore.qore.network/tx/0C3E9C64369EF54EB38B37E7DDB29D5270D06C7FFEC3A409C4A5A8751BE03D33)) |
+| Old phone vetoes it | cancelled | 0x442daf6d6409c1698c308684031d0cb31a39d51a3cedc6429547635efba3a68f ([explorer](https://explore.qore.network/tx/4B706AE1182B0DA861D0447748B4218E3E39392F4AC542ED31B05A0E5C0C49D0)) |
+| Laptop proposes again (old phone lost) | wait started | 0xa23dc1777eff378572e5aee6e14be7d54a8071d981e26edbec7d6b1a5eb9f229 ([explorer](https://explore.qore.network/tx/06BE7392BCDE0103776BBDDFA529D034B522BF96C393452BB77DB0FE99CCAA7F)) |
 | Confirm before the wait | refused, TooEarly | |
-| Confirm after the wait | new phone in charge, account still sealed | 0x5afafb74d82dc7540e0777a51dbed11785e4ae3de2a64814857e3db74f60e8da |
+| Confirm after the wait | new phone in charge, account still sealed | 0x5afafb74d82dc7540e0777a51dbed11785e4ae3de2a64814857e3db74f60e8da ([explorer](https://explore.qore.network/tx/14675A1DF8576C7DE52B8A4E65C2263F7184394E61CFFE7EAB7A17C249DED522)) |
 | Fund demo v2 with 100 fUSD (MsgConvertCoin) | 100 fUSD, blast radius 5.00 | 2AEE70588179627494D6C2B0D0B4B0A6FABDA1154D87427E3E69E5A17C4DB442 |
 
 The earlier factory and demo accounts stay on chain; the replay and activity history link to their transactions.
@@ -98,7 +100,7 @@ Dedicated server keys (21 November): relayer qor1jucepu367uyf74dtrpqnxyawktagxaq
 | Agent key renewed from the live server | linked for an hour, tx 1F554A42EB7587C8C4BC3C0A5EEFDF7B8D707A5EB88FFCC9CBC7B44A6959129C |
 | Relayer: forged phone approval | 422, refused in simulation, no gas spent |
 | Relayer: seal() | 422, only the owner's own keys can |
-| Relayer: real ML-DSA-87 phone approval (add payee on demo v2) | 200, tx 0x02f5f2c2c7dcdb097895508c4c5c2d4bec8abb83cb4bc6883b2440a98666d3a5 |
+| Relayer: real ML-DSA-87 phone approval (add payee on demo v2) | 200, tx 0x02f5f2c2c7dcdb097895508c4c5c2d4bec8abb83cb4bc6883b2440a98666d3a5 ([explorer](https://explore.qore.network/tx/EE79B8C257F5067B76C01749581241461A34959E0F50D46FC4D9C3CB99B25975)) |
 | Agent: poisoned "pay 5000 to an unknown address" invoice | ask-phone, nothing paid, queued sealed to the phone (2,599-char envelope, amount not in plain text) |
 | Agent: invoice whose address the model mangled | rejected, nothing paid |
 
@@ -116,16 +118,16 @@ A first v3 factory (0x6b1f671a674ebe6d0bcfba235e9f4874e431626b) let the laptop r
 
 | Step | Result | Transaction |
 |---|---|---|
-| Deploy factory v3 | OK, gas 4,076,150 | 0xd40a62e02109a707435982f575d36c81fa3bc70d87bbb4551c1f233ff33c9bb5 |
-| Deploy account v3, real ML-DSA-87 | OK, gas 3,116,461 | 0x4ddcc4f1b935ebe599c6f3ce0b87db7cdac74c210abd5041bf16e3c0285c5b58 |
+| Deploy factory v3 | OK, gas 4,076,150 | 0xd40a62e02109a707435982f575d36c81fa3bc70d87bbb4551c1f233ff33c9bb5 ([explorer](https://explore.qore.network/tx/8E5161DDB7CA239EA0B7155259C216116B69A38017D40063FDCDA9597D7B50FB)) |
+| Deploy account v3, real ML-DSA-87 | OK, gas 3,116,461 | 0x4ddcc4f1b935ebe599c6f3ce0b87db7cdac74c210abd5041bf16e3c0285c5b58 ([explorer](https://explore.qore.network/tx/A8291706C6F092D222B97F67551EB1FD256FDA3E075FA60037A031D92FD945F5)) |
 | Fund 20 fUSD (MsgConvertCoin) | blast radius 5.00 | 772713BD9D1F65C15BEDE00212BEF45EC2DFB7D8437ABC23D49C81015A4233F0 |
-| Phone signs "add the pilot" | queued | 0xac2e3563451840028966bdae48506775296f6e56a3349b8b5112eed54520bcd7 |
-| Run it after the delay | pilot set | 0x371105812d2bb9505c332d05bcc920acda12424e1f0f540a4933c1045707857e |
-| Pilot lowers the wall for the night | blast radius 0.40 | 0x2fbbdad9becb756118dfc7434da9f87deb07e94c26de91241201e5aba5458483 |
+| Phone signs "add the pilot" | queued | 0xac2e3563451840028966bdae48506775296f6e56a3349b8b5112eed54520bcd7 ([explorer](https://explore.qore.network/tx/E9A91A5276014A4BA52A7054DBC3A0816B9FB0A70917AB9C39810A51446B58C1)) |
+| Run it after the delay | pilot set | 0x371105812d2bb9505c332d05bcc920acda12424e1f0f540a4933c1045707857e ([explorer](https://explore.qore.network/tx/0858FD6352CE17A91875CC39FA188740B7419EB6B84F34A1C74B83145E746276)) |
+| Pilot lowers the wall for the night | blast radius 0.40 | 0x2fbbdad9becb756118dfc7434da9f87deb07e94c26de91241201e5aba5458483 ([explorer](https://explore.qore.network/tx/ACD65931CCEE4169067DB0BEFB5A2AC9C5FE2649BFE562B7DE94057C9A17A8A0)) |
 | Stolen laptop tries to reopen the wall | refused, NotTighter | |
-| Stolen laptop tries 5.00 at night | HeldByPilot, nothing moved, not sealed | 0x9feb3542945699996bd3c4aae0b8ca84dee86c7a4edfb5d12b481c971cc26771 |
-| Pilot raises to the ceiling for 40 blocks | blast radius 5.00 | 0xfcb0c383a499067119fbce26031d92f4b640c28da3ec59e26a9205fc46c8281b |
-| Owner pays 3.00 during the raise | Spent, 17 fUSD left | 0xeb7904c3cfc807551c804f001005fa96b37f0efac67e9091dc16f34ba6491d31 |
+| Stolen laptop tries 5.00 at night | HeldByPilot, nothing moved, not sealed | 0x9feb3542945699996bd3c4aae0b8ca84dee86c7a4edfb5d12b481c971cc26771 ([explorer](https://explore.qore.network/tx/D1D532374DEE171EA71AEBCD1EB6A9B6F6CD860E55B917709B03753B8EA357D4)) |
+| Pilot raises to the ceiling for 40 blocks | blast radius 5.00 | 0xfcb0c383a499067119fbce26031d92f4b640c28da3ec59e26a9205fc46c8281b ([explorer](https://explore.qore.network/tx/363F5ACA0DB7877EA915A6CA7C41B660C7C6EAE9C72248DBAD3AE6C3C1536F74)) |
+| Owner pays 3.00 during the raise | Spent, 17 fUSD left | 0xeb7904c3cfc807551c804f001005fa96b37f0efac67e9091dc16f34ba6491d31 ([explorer](https://explore.qore.network/tx/743A0708C5E8AFF956CC7217F663A98F6FB1FC87922D65DA7AC7351D8CFEB818)) |
 | Pilot tries to go above the ceiling | refused, AbovePolicy | |
 | The raise expires, no pilot action | blast radius 0.00 (rest 0.40 a day, 3.00 already spent today) | |
 
@@ -135,13 +137,13 @@ Run against https://bulkhead-blush.vercel.app through its own APIs only (relay, 
 
 | Step | Result | Transaction |
 |---|---|---|
-| Phone authorises a new v3 account, live relayer deploys it | account 0x6759AD2986A2CFABBC1be669c7eaad7c8d7382df | 0xba5720b66bd79ceadbb105dba3bf77dca1c9551f9c287e9602eceb46337641d6 |
-| Phone signs "add the pilot" (production pilot 0x4e21ed6743B7e8D169f6C09f5045D016B53f3888) | queued | 0x8c676d338cef880a0cc5acb73124edff2f90f600bd3f3e0d9e277cc56b044277 |
-| Live relayer finishes it after the delay | pilot set, blast radius 5.00 | 0xe39041dc9fa8fabcefd5f6c62e802045067b3fbf29ebbd1d0c4dc360eeb6507a |
-| Laptop saves quiet hours covering now, live pilot closes the wall | blast radius 0.30 | 0x500f34a27153fb88a5e77cae4040c98a7bfab17828789801d919cb7406d90f8a |
+| Phone authorises a new v3 account, live relayer deploys it | account 0x6759AD2986A2CFABBC1be669c7eaad7c8d7382df | 0xba5720b66bd79ceadbb105dba3bf77dca1c9551f9c287e9602eceb46337641d6 ([explorer](https://explore.qore.network/tx/788E82BA693AB6D35808F850996C7D11BACD36A043C68D0C50CB4E35361E4F6E)) |
+| Phone signs "add the pilot" (production pilot 0x4e21ed6743B7e8D169f6C09f5045D016B53f3888) | queued | 0x8c676d338cef880a0cc5acb73124edff2f90f600bd3f3e0d9e277cc56b044277 ([explorer](https://explore.qore.network/tx/5DD3910A77B3DD3C27A60A211FBD34E06642F24D667F6E3598B12F9E0AA65572)) |
+| Live relayer finishes it after the delay | pilot set, blast radius 5.00 | 0xe39041dc9fa8fabcefd5f6c62e802045067b3fbf29ebbd1d0c4dc360eeb6507a ([explorer](https://explore.qore.network/tx/73159ECAF3D6CF7BE0C9F365945438CB38E6494775F53B76CE522A918698AC9E)) |
+| Laptop saves quiet hours covering now, live pilot closes the wall | blast radius 0.30 | 0x500f34a27153fb88a5e77cae4040c98a7bfab17828789801d919cb7406d90f8a ([explorer](https://explore.qore.network/tx/383CEA27791A393CFD5B2617E2B907EDDA6F6E815A3DCF2C9DB4D02DB82B68B6)) |
 | Ask for 4.00 during quiet hours | refused, sent to the phone | |
 | Stolen laptop tries to reopen the wall | refused | |
-| Stolen laptop tries 5.00 | held, 10.00 fUSD left, not sealed | 0xbe76fc8c5abb970e97993a7327d821dc97808c3b042ab410e98989a8e7c4b65a |
+| Stolen laptop tries 5.00 | held, 10.00 fUSD left, not sealed | 0xbe76fc8c5abb970e97993a7327d821dc97808c3b042ab410e98989a8e7c4b65a ([explorer](https://explore.qore.network/tx/8E8F7B168D87D3DF9CA748168CB4BA0C9BB96205E3527BF164801697B1CBC6A5)) |
 | Move quiet hours away (daytime) | FAILED: the pilot read the previous quiet hours from storage. Fixed in PRs #4 and #5 | |
 | Pairing relay: start, phone's sealed card, second reply | 201, 200, refused 400; only the laptop could open the card | |
 
@@ -149,9 +151,9 @@ Run against https://bulkhead-blush.vercel.app through its own APIs only (relay, 
 
 | Step | Result | Transaction |
 |---|---|---|
-| Daytime hours saved, live pilot opens the wall | blast radius 0.30 to 2.00 | 0x5e45a9908dae5591e104680eb21fba20109219ecd5a24835eff5c1dd5fa5b9bf |
-| "about 4 until 14:00, shopping": the model read 4 and 14:00, code opened within the ceiling | blast radius 4.00 | 0x72cf2e470b258733f133812fd60fadb1163fb816014e6fa80decad2e5ad404d2 |
-| Back to quiet hours | blast radius 0.30 | 0x9a7a337c8e6de514f66eb5ed7161fb35f8bb1a190338e2125f675d50a65896f8 |
+| Daytime hours saved, live pilot opens the wall | blast radius 0.30 to 2.00 | 0x5e45a9908dae5591e104680eb21fba20109219ecd5a24835eff5c1dd5fa5b9bf ([explorer](https://explore.qore.network/tx/7EF040665BCF269B3D5D33F3457136EF9CC16C317CE5DA8C5418A6D66758B42E)) |
+| "about 4 until 14:00, shopping": the model read 4 and 14:00, code opened within the ceiling | blast radius 4.00 | 0x72cf2e470b258733f133812fd60fadb1163fb816014e6fa80decad2e5ad404d2 ([explorer](https://explore.qore.network/tx/5C1330D560838261BDE608FC75E47880E58C5B049BA784516C7EA0AC2C79FAC7)) |
+| Back to quiet hours | blast radius 0.30 | 0x9a7a337c8e6de514f66eb5ed7161fb35f8bb1a190338e2125f675d50a65896f8 ([explorer](https://explore.qore.network/tx/C34DDD6562C74B26C0D0C7B49C6CC958DB1F3FF0FBF0F4725A1E7C9196422674)) |
 | Browser walk of the live site (landing, setup, pilot, hull, phone) at 1280 and 390 px | all load, no page errors, no sideways scroll | |
 
 ## Contracts v4 (25 November, round 27): the pilot with no wait
@@ -165,12 +167,12 @@ Adding the pilot widens nothing (it can only move the live walls inside the phon
 
 | Step | Result | Transaction |
 |---|---|---|
-| Deploy factory v4 | OK, gas 4,223,411 | 0xd62d692d08ad97fd66bbd2e03e4742adad52daf1d87f7cd024754b96ba533c67 |
+| Deploy factory v4 | OK, gas 4,223,411 | 0xd62d692d08ad97fd66bbd2e03e4742adad52daf1d87f7cd024754b96ba533c67 ([explorer](https://explore.qore.network/tx/281E4BBB65C0177400493728890FBCC9D1D7CD128A81B91E506DC510454B9E1C)) |
 | Pilot equal to the laptop key at creation | refused, BadInit | |
-| Create account v4 with the pilot in the phone-signed Init (loosenDelay 2,500) | pilot set from block one | 0xca1c60fe0f73f450c04a53fabf254640fb790f0edc097a10a61f140f9bc6025d |
-| Pilot lowers the wall right after creation | caps 0.40 / 0.40 | 0x5053704c3b8ed01dcbc04a1e4d2c918f84ebca0fba9f7394a41cc5686579233a |
+| Create account v4 with the pilot in the phone-signed Init (loosenDelay 2,500) | pilot set from block one | 0xca1c60fe0f73f450c04a53fabf254640fb790f0edc097a10a61f140f9bc6025d ([explorer](https://explore.qore.network/tx/682D15B3237A7E325DBCE8739560CA8E379FC710C06745BE12379AE8A9F7FC00)) |
+| Pilot lowers the wall right after creation | caps 0.40 / 0.40 | 0x5053704c3b8ed01dcbc04a1e4d2c918f84ebca0fba9f7394a41cc5686579233a ([explorer](https://explore.qore.network/tx/5BC44C5D71034B5B26CEB38D8CE125F6FAC3A33744373BDCCCC46C9E8BBE80F5)) |
 | Forged phone signature to change the pilot | refused, BadSafetySignature | |
-| Phone replaces the pilot, effective at once (real ML-DSA-87) | production pilot set, no delay | 0xf9ae8c9dbaf8bbf6b3c716824bc980d00202a6d351b787acd44dbd9320894b11 |
+| Phone replaces the pilot, effective at once (real ML-DSA-87) | production pilot set, no delay | 0xf9ae8c9dbaf8bbf6b3c716824bc980d00202a6d351b787acd44dbd9320894b11 ([explorer](https://explore.qore.network/tx/B75229E1071951BD34C7702E6B5ED25910B7FDA83C5EA1E3BD05A026A7699CFE)) |
 
 ## Live site on v4 (25 November, round 28)
 
@@ -178,8 +180,8 @@ After the v4 merge, with the relayer serving v4, v3 and v2 accounts.
 
 | Step | Result | Transaction |
 |---|---|---|
-| Phone authorises a v4 account with the live pilot in its Init, live relayer deploys it | account 0xE44f94756f274bb41522077Af66F8213733453C2, pilot from block one, loosenDelay 2,500 | 0xc6eb942ee418004734edcbcaff30956e9e95e0ab8e8df755a908c0d7c15aa373 |
-| Quiet hours saved, the live pilot closes the wall at once | caps 0.30 / 0.30, no widening delay involved | 0x188f9842e192ddfd9191a5f30fc3c0823ab9b7209e095b889531ec5062b3a578 |
+| Phone authorises a v4 account with the live pilot in its Init, live relayer deploys it | account 0xE44f94756f274bb41522077Af66F8213733453C2, pilot from block one, loosenDelay 2,500 | 0xc6eb942ee418004734edcbcaff30956e9e95e0ab8e8df755a908c0d7c15aa373 ([explorer](https://explore.qore.network/tx/05AC2310072449DACDAE2118AF63BEAF21C9E46859EE18A750AB3E408787274B)) |
+| Quiet hours saved, the live pilot closes the wall at once | caps 0.30 / 0.30, no widening delay involved | 0x188f9842e192ddfd9191a5f30fc3c0823ab9b7209e095b889531ec5062b3a578 ([explorer](https://explore.qore.network/tx/5E59109588179E9F87F374ECDE58D20E47B1D4896FEFE2F8E2DE63A916BF808D)) |
 
 ## Design findings from earlier testnet rounds
 

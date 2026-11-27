@@ -266,6 +266,17 @@ Round 28 is in [`docs/DEPLOYMENTS.md`](docs/DEPLOYMENTS.md#live-site-on-v4-25-no
 
 QoreChain testnet `qorechain-diana`, EVM chain id 9800. Blocks take about 1.42 seconds.
 
+The main testnet addresses this project uses, in both forms. The `qor1` form is the same account on the native lane.
+
+| What | EVM | qor1 |
+| :--- | :--- | :--- |
+| `BulkheadFactory` v4 | `0xdd2e1ed55393db01086c5a4d829f4558094870cb` | `qor1m5hpa42nj0dszzrvtfxc9869tqy5suxtyty2pq` |
+| Live demo account, v4 | `0xB5a69255fE41c9ab4D9A52478A22966E3ddE0Df6` | `qor1kknfy407g8y6knv62frc5g5kdc7aur0k8g7yxj` |
+| Pilot key, live | `0x4e21ed6743B7e8D169f6C09f5045D016B53f3888` | `qor1fcs76e6rkl5dz60kcz04q3wsz66n7wygk04a73` |
+| Test account, v4 | `0xE44f94756f274bb41522077Af66F8213733453C2` | `qor1u38egat0ya9mg9fzqaa0vmuzzdeng57zfys74x` |
+
+Every address, including legacy factories and earlier test accounts:
+
 | Contract | Address | Notes |
 | :--- | :--- | :--- |
 | `BulkheadFactory` v4 | [`0xdd2e1ed55393db01086c5a4d829f4558094870cb`](https://explore.qore.network/address/0xdd2e1ed55393db01086c5a4d829f4558094870cb) | Current. The pilot is signed in at creation and set later with `setPilotWithApproval`, no wait. Deployed 25 November |

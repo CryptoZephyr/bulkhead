@@ -11,6 +11,7 @@ const MARK: Record<HistoryItem["kind"], StatusKind> = {
   paid: "paid", "paid-with-phone": "phone", received: "paid", tripped: "sealed", sealed: "sealed", paused: "paused",
   tightened: "holding", "widen-queued": "phone", "widen-done": "holding", "widen-cancelled": "holding",
   evacuated: "evacuated", "phone-change": "phone", "phone-changed": "phone",
+  "wall-pilot": "holding", "wall-laptop": "holding", held: "blocked", "pilot-set": "phone",
 };
 
 export function useHistory(account: Address | null) {

@@ -4,7 +4,7 @@ import { build } from "esbuild";
 import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 
 const OUT = ".vercel/output";
-const FUNCTIONS = ["rest", "relay", "requests", "agent", "agent-key", "bills", "pilot", "pair"];
+const FUNCTIONS = ["rest", "relay", "requests", "agent", "agent-key", "bills", "pilot", "pair", "tx"];
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(`${OUT}/static`, { recursive: true });
 cpSync("dist", `${OUT}/static`, { recursive: true });

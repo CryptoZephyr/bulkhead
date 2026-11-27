@@ -6,7 +6,8 @@ export const EVM_RPC = "https://evm-testnet.qore.host";
 // The public REST API sends no CORS headers (measured), so browsers go through our gateway.
 export const REST = ((import.meta as { env?: Record<string, string> }).env?.VITE_GATEWAY)
   ?? (typeof location !== "undefined" ? `${location.origin}/api/rest` : "https://api-testnet.qore.host");
-export const EXPLORER_TX = "https://explore.qore.network/tx/";
+// Goes through /api/tx, which turns an EVM 0x hash into the native hash the explorer needs.
+export const EXPLORER_TX = "/api/tx?h=";
 
 export const qorechainTestnet = defineChain({
   id: 9800,

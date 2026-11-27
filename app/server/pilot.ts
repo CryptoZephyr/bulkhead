@@ -123,3 +123,46 @@ export const DEFAULTS = (c: Ceiling): Omit<PilotSettings, "tzOffsetMin"> => ({
   restPerTx: c.perTx / 12n, restPeriod: c.period / 36n,
   dayPerTx: c.perTx, dayPeriod: c.period,
 });
+
+// ------------------------------------------------------------------ tripwire
+
+/** One on-chain event the tripwire reads. `at` is the block time in ms. */
+export type TripEvent =
+  | { kind: "Spent"; at: number; block: bigint; amount: bigint; withApproval: boolean; txHash?: string }
+  | { kind: "HeldByPilot"; at: number; block: bigint; amount: bigint; txHash?: string };
+
+/** The walls the pilot sets when the tripwire trips: nothing can leave Everyday. */
+export const CLOSED: LiveTarget = { perTx: 0n, period: 0n, until: 0n, restPerTx: 0n, restPeriod: 0n, reason: "The tripwire closed the wall to zero." };
+
+export const BURST_COUNT = 3;
+export const BURST_MS = 10 * 60_000;
+
+const clock = (at: number, tz: number) => { const m = localMinute(at, tz); return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
+const CLOSED_NOTE = "The pilot closed the wall to zero.";
+
+/**
+ * Whether the account's recent events look like a stolen laptop. Pure and deterministic.
+ *  (a) any HeldByPilot: someone tried to spend over the live wall.
+ *  (b) BURST_COUNT or more laptop payments (not phone-approved) within BURST_MS.
+ *  (c) a laptop payment during quiet hours.
+ * Events later than `now` are ignored. Times in the reason are on the owner's clock.
+ */
+export function tripwire(events: TripEvent[], now: number, settings: PilotSettings | null): { tripped: boolean; reason: string } {
+  const tz = settings?.tzOffsetMin ?? 0;
+  const seen = events.filter((e) => e.at <= now).sort((a, b) => a.at - b.at);
+  const held = seen.filter((e) => e.kind === "HeldByPilot");
+  if (held.length) {
+    const n = held.length;
+    return { tripped: true, reason: `${n === 1 ? "1 payment was" : `${n} payments were`} held over your live wall at ${clock(held[0].at, tz)}. ${CLOSED_NOTE}` };
+  }
+  const laptop = seen.filter((e) => e.kind === "Spent" && !e.withApproval);
+  if (settings) {
+    const q = laptop.find((e) => isQuiet(settings, e.at));
+    if (q) return { tripped: true, reason: `A payment left Everyday at ${clock(q.at, tz)}, inside your quiet hours (${settings.quietStart} to ${settings.quietEnd}). ${CLOSED_NOTE}` };
+  }
+  for (let i = 0, j = 0; j < laptop.length; j++) {
+    while (laptop[j].at - laptop[i].at > BURST_MS) i++;
+    if (j - i + 1 >= BURST_COUNT) return { tripped: true, reason: `${j - i + 1} payments left Everyday within 10 minutes, the last at ${clock(laptop[j].at, tz)}. ${CLOSED_NOTE}` };
+  }
+  return { tripped: false, reason: "Nothing unusual." };
+}

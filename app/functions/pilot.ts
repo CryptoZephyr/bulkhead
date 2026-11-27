@@ -6,7 +6,13 @@
 //        A settings change that loosens the schedule is not applied: it waits in pendingSettings for the phone.
 //   POST /api/pilot { account, change: { kind: "approve-settings", settings, nonce, deadline, phoneSig } }
 //        (no laptop signature: the phone's ML-DSA-87 signature over pilotScheduleDigest, checked on chain)
-//   POST /api/pilot?tick=1 { account }    -> bring the chain in line with the schedule (anyone may ask; it only follows the owner's schedule)
+//   POST /api/pilot { account, change: { kind: "approve-reopen", nonce, deadline, phoneSig } }
+//        (phone only: reopens a wall the tripwire closed; the digest, pilotReopenDigest, is bound to that trip's time)
+//   POST /api/pilot?tick=1 { account }    -> run the tripwire, then bring the chain in line with the schedule
+//        (anyone may ask; it only follows the owner's schedule and tripwire)
+//   Tripwire: each tick reads the account's Spent and HeldByPilot events since lastCheckedBlock. If tripwire()
+//   trips, the pilot sets every live wall to zero and stays there: no schedule raise, no request, and laptop
+//   settings stay tighten-only, until the phone signs approve-reopen.
 //   GET  /api/pilot?info=1                 -> { pilotAddress } of the configured pilot key (or null), no account needed
 //   GET  /api/pilot?cron=1                 -> the same for every account
 // Every level comes from server/pilot.ts. The model only reads free text into { amount, untilLocal }.
@@ -14,25 +20,39 @@ import Anthropic from "@anthropic-ai/sdk";
 import { verifyMessage, type Address, type Hex } from "viem";
 import accountAbi from "../src/chain/abi/BulkheadAccount.json" with { type: "json" };
 import { pub } from "../server/relayer.js";
-import { plan, planRequest, sameAsChain, validate, isQuiet, isTightening, DEFAULTS, BadPilot, type PilotSettings, type LiveTarget } from "../server/pilot.js";
+import { plan, planRequest, sameAsChain, validate, isQuiet, isTightening, tripwire, CLOSED, BURST_MS, DEFAULTS, BadPilot, type PilotSettings, type LiveTarget, type TripEvent } from "../server/pilot.js";
 import { readLatest, writeVersion, folders } from "../server/blobjson.js";
-import { phoneSignedSchedule } from "../server/phoneSig.js";
+import { phoneSignedSchedule, phoneSignedReopen } from "../server/phoneSig.js";
 import { canonicalSettings, PILOT_SCHEDULE_MAX_AHEAD_MS, type PilotSettingsJson } from "../src/chain/pilotSchedule.js";
-import { readChain, applyTarget, pilotKey, type ChainView } from "../server/pilotChain.js";
+import { readChain, applyTarget, pilotKey, readTripEvents, type ChainView } from "../server/pilotChain.js";
 
 export const config = { runtime: "nodejs", maxDuration: 60 };
 
 const ADDR = /^0x[0-9a-fA-F]{40}$/;
 const fmt = (n: bigint) => (Number(n) / 1e6).toFixed(2);
 
-interface LogEntry { at: number; kind: "schedule" | "request" | "refused" | "settings"; reason: string; txHash?: string; blastRadius?: string; target?: Record<string, string> }
+interface LogEntry { at: number; kind: "schedule" | "request" | "refused" | "settings" | "tripwire" | "reopen"; reason: string; txHash?: string; blastRadius?: string; target?: Record<string, string> }
 interface Book {
   account: string; settings: Record<string, string | number> | null; log: LogEntry[];
   /** A looser schedule the laptop proposed, waiting for the phone. */
   pendingSettings?: { settings: PilotSettingsJson; at: number } | null;
   /** Phone approval nonces already used (the last 50). */
   usedNonces?: string[];
+  /** Set when the tripwire closed the wall. Only the phone clears it (approve-reopen). */
+  tripped?: { at: number; reason: string } | null;
+  /** Last block the tripwire has read (decimal string). */
+  lastCheckedBlock?: string;
+  /** Recent laptop payments, kept so a burst that straddles two checks is still seen. */
+  recentSpends?: { at: number; block: string }[];
 }
+
+/** First run: how far back the tripwire looks. Later runs read from lastCheckedBlock, at most MAX_LOOKBACK blocks. */
+const FIRST_LOOKBACK = 1_000n;
+const MAX_LOOKBACK = 50_000n;
+/** Save the book for the tripwire's progress alone at most this often (in blocks), to spare storage writes. */
+const SAVE_EVERY = 2_000n;
+/** ?cron=1 answers within this, inside the function's 60 s limit and the workflow's 50 s timeout. */
+const CRON_BUDGET_MS = 40_000;
 
 // Storage: Vercel Blob in production, memory locally.
 const mem = new Map<string, Book>();
@@ -70,22 +90,96 @@ async function apply(book: Book, chain: ChainView, t: LiveTarget, kind: LogEntry
   const me = await key();
   if (chain.pilot.toLowerCase() !== (me.evm as string).toLowerCase()) throw new BadPilot("This account hasn't added the pilot yet. Approve \"Add the pilot\" on your phone first.");
   if (chain.liveOn && sameAsChain(t, chain.live, chain.block)) return null;
-  const r = await applyTarget(book.account as Address, t, me);
+  const r = await serial(() => applyTarget(book.account as Address, t, me));
   log(book, { kind, reason: t.reason, txHash: r.txHash, blastRadius: fmt(r.blastRadius), target: targetJson(t) });
   return r;
 }
 
+// The pilot key's transactions go one at a time (its window and nonce are shared across accounts).
+let chainLock: Promise<unknown> = Promise.resolve();
+function serial<T>(f: () => Promise<T>): Promise<T> {
+  const p = chainLock.then(f, f);
+  chainLock = p.catch(() => undefined);
+  return p;
+}
+
+/**
+ * Reads the account's Spent and HeldByPilot events since the last check and runs the tripwire.
+ * Sets book.tripped when it trips. Returns whether the book changed and whether this is a new trip.
+ */
+async function watch(book: Book, chain: ChainView, s: PilotSettings | null, now: number): Promise<{ dirty: boolean; fresh: boolean }> {
+  const last = book.lastCheckedBlock ? BigInt(book.lastCheckedBlock) : null;
+  const to = chain.block;
+  let from = last === null ? to - FIRST_LOOKBACK : last + 1n;
+  if (to - from > MAX_LOOKBACK) from = to - MAX_LOOKBACK;
+  if (from < 0n) from = 0n;
+  if (from > to) return { dirty: false, fresh: false };
+  const events = await readTripEvents(book.account as Address, from, to);
+  book.lastCheckedBlock = String(to);
+  const cutoff = now - BURST_MS;
+  const carried: TripEvent[] = (book.recentSpends ?? []).filter((e) => e.at >= cutoff).map((e) => ({ kind: "Spent", at: e.at, block: BigInt(e.block), amount: 0n, withApproval: false }));
+  const laptop = events.filter((e) => e.kind === "Spent" && !e.withApproval && e.at >= cutoff);
+  book.recentSpends = [...carried, ...laptop].map((e) => ({ at: e.at, block: String(e.block) })).slice(-20);
+  let fresh = false;
+  if (!book.tripped) {
+    // Block times can run a little ahead of this server's clock: never drop an event for that.
+    const r = tripwire([...carried, ...events], Math.max(now, ...events.map((e) => e.at)), s);
+    if (r.tripped) { book.tripped = { at: now, reason: r.reason }; book.recentSpends = []; fresh = true; }
+  }
+  return { dirty: fresh || events.length > 0 || last === null || to - last >= SAVE_EVERY, fresh };
+}
+
 async function tick(account: string, now = Date.now(), known?: Book) {
   const book = known ?? await getBook(account);
-  if (!book.settings) return { book, changed: false, reason: "No schedule yet." };
   const chain = await readChain(account as Address);
   if (chain.sealed) return { book, changed: false, reason: "The account is sealed. Nothing to do." };
-  const t = plan(toSettings(book.settings), chain.ceiling, now, chain.block, chain.periodBlocks);
+  const s = book.settings ? toSettings(book.settings) : null;
+  const w = await watch(book, chain, s, now);
+
+  if (book.tripped) {
+    // Tripped: the only thing the pilot does is hold the wall at zero until the phone reopens it.
+    if (w.fresh) await putBook(book);   // record the trip before anything that could fail
+    const t: LiveTarget = { ...CLOSED, reason: w.fresh ? book.tripped.reason : "The tripwire is still set. The wall stays closed until your phone reopens it." };
+    let r: Awaited<ReturnType<typeof apply>> = null;
+    try { r = await apply(book, chain, t, "tripwire"); }
+    catch (e) { if (w.fresh) log(book, { kind: "tripwire", reason: `${book.tripped.reason} The pilot couldn't close it on chain: ${(e as Error).message}` }); await putBook(book); throw e; }
+    if (w.fresh && !r) log(book, { kind: "tripwire", reason: `${book.tripped.reason} It was already closed.` });
+    if (r || w.fresh || w.dirty) await putBook(book);
+    return { book, changed: !!r, reason: book.tripped.reason };
+  }
+
+  if (!s) { if (w.dirty) await putBook(book); return { book, changed: false, reason: "No schedule yet." }; }
+  const t = plan(s, chain.ceiling, now, chain.block, chain.periodBlocks);
   // A raise the owner asked for is still running and is at least as open as the schedule: leave it.
-  if (chain.live.until > chain.block && chain.live.perTx >= t.perTx && !isQuiet(toSettings(book.settings), now)) return { book, changed: false, reason: "Your own raise is still open." };
+  if (chain.live.until > chain.block && chain.live.perTx >= t.perTx && !isQuiet(s, now)) { if (w.dirty) await putBook(book); return { book, changed: false, reason: "Your own raise is still open." }; }
   const r = await apply(book, chain, t, "schedule");
-  if (r) await putBook(book);
+  if (r || w.dirty) await putBook(book);
   return { book, changed: !!r, reason: t.reason };
+}
+
+/** The phone reopens a wall the tripwire closed. Same rules as approve-settings; the digest is bound to this trip. */
+async function approveReopen(account: string, c: { [k: string]: unknown }) {
+  let nonce: bigint, deadline: bigint;
+  try { nonce = BigInt(String(c.nonce)); deadline = BigInt(String(c.deadline)); } catch { throw new BadPilot("nonce and deadline must be whole numbers."); }
+  const nowS = BigInt(Math.floor(Date.now() / 1000));
+  if (deadline < nowS) throw new BadPilot("This approval has expired. Approve it again on your phone.");
+  if (deadline > nowS + BigInt(PILOT_SCHEDULE_MAX_AHEAD_MS / 1000)) throw new BadPilot("This approval's deadline is too far ahead.");
+  const book = await getBook(account);
+  if (!book.tripped) throw new BadPilot("The wall isn't closed by the tripwire. Nothing to reopen.");
+  if ((book.usedNonces ?? []).includes(nonce.toString())) throw new BadPilot("This approval was already used.");
+  if (!(await phoneSignedReopen(account as Address, book.tripped.at, nonce, deadline, String(c.phoneSig ?? "0x") as Hex)))
+    return Response.json({ error: "This approval wasn't signed by the account's phone for this trip." }, { status: 401 });
+
+  const chain = await readChain(account as Address);
+  book.tripped = null;
+  book.recentSpends = [];
+  // Attempts made while the wall was closed were already answered by the trip: start watching from now.
+  book.lastCheckedBlock = String(chain.block);
+  book.usedNonces = [...(book.usedNonces ?? []), nonce.toString()].slice(-50);
+  log(book, { kind: "reopen", reason: "Reopened on your phone" });
+  await putBook(book);
+  const r = await tickAfterSave(account, chain, book);
+  return Response.json({ ok: true, changed: r.changed, reason: r.reason, log: book.log });
 }
 
 // Act on the settings just saved, not on a re-read copy (storage reads can lag a write).
@@ -159,9 +253,13 @@ async function handler(req: Request): Promise<Response> {
     if (req.method === "GET" && url.searchParams.get("cron")) {
       if (!hasBlob()) return Response.json({ ran: 0 });
       const accounts = await folders("pilot");
-      let changed = 0;
-      for (const a of accounts) { try { if ((await tick(a)).changed) changed++; } catch { /* next account */ } }
-      return Response.json({ accounts: accounts.length, changed });
+      // Every account is read in parallel; the pilot's own transactions queue one at a time (serial()).
+      // Answer within CRON_BUDGET_MS so the 60 s function limit and the caller's timeout hold: anything
+      // unfinished is picked up by the next run, and a trip is saved before its transaction is sent.
+      let changed = 0, tripped = 0, failed = 0, done = 0;
+      const all = Promise.all(accounts.map((a) => tick(a).then((r) => { done++; if (r.changed) changed++; if (r.book.tripped) tripped++; }, () => { done++; failed++; })));
+      await Promise.race([all, new Promise((s) => setTimeout(s, CRON_BUDGET_MS))]);
+      return Response.json({ accounts: accounts.length, done, changed, tripped, failed });
     }
     if (req.method === "GET" && url.searchParams.get("info")) {
       const me = await key().catch(() => null);
@@ -176,7 +274,7 @@ async function handler(req: Request): Promise<Response> {
       let preview: unknown = null;
       try { preview = targetJson(plan(s, chain.ceiling, Date.now(), chain.block, chain.periodBlocks)); } catch { /* settings no longer fit */ }
       return Response.json({ account: book.account, pilotAddress: me?.evm ?? null, added: !!me && chain.pilot.toLowerCase() === (me.evm as string).toLowerCase(),
-        settings: book.settings ?? fromSettings(s as PilotSettings), saved: !!book.settings, quietNow: isQuiet(s as PilotSettings, Date.now()), preview, pendingSettings: book.pendingSettings ?? null, chain: chainJson(chain), log: book.log });
+        settings: book.settings ?? fromSettings(s as PilotSettings), saved: !!book.settings, quietNow: isQuiet(s as PilotSettings, Date.now()), preview, pendingSettings: book.pendingSettings ?? null, tripped: book.tripped ?? null, chain: chainJson(chain), log: book.log });
     }
     if (req.method !== "POST") return Response.json({ error: "Not allowed." }, { status: 405 });
     const body = (await req.json()) as { account?: string; at?: number; change?: { kind?: string; [k: string]: unknown }; signature?: Hex };
@@ -186,6 +284,7 @@ async function handler(req: Request): Promise<Response> {
     if (url.searchParams.get("tick")) { const r = await tick(account); return Response.json({ changed: r.changed, reason: r.reason, log: r.book.log }); }
 
     if (body.change?.kind === "approve-settings") return await approveSettings(account, body.change);
+    if (body.change?.kind === "approve-reopen") return await approveReopen(account, body.change);
 
     if (!body.change || typeof body.at !== "number") throw new BadPilot("Send account, at, change and signature.");
     if (Math.abs(Date.now() - body.at) > 5 * 60_000) throw new BadPilot("This change is too old. Try again.");
@@ -216,6 +315,15 @@ async function handler(req: Request): Promise<Response> {
     if (c.kind === "request") {
       if (!book.settings) throw new BadPilot("Set your quiet hours first.");
       const s = toSettings(book.settings);
+      // Look for trouble before opening anything, so a request can't race the next scheduled check.
+      const w = await watch(book, chain, s, Date.now());
+      if (w.fresh && book.tripped) { log(book, { kind: "tripwire", reason: book.tripped.reason }); await putBook(book); await tick(account, Date.now(), book).catch(() => undefined); }
+      // After a trip the pilot never raises on the laptop's word. Only the phone reopens the wall.
+      if (book.tripped) {
+        const reason = `The pilot closed your wall after this: ${book.tripped.reason} Reopen it on your phone.`;
+        log(book, { kind: "refused", reason }); await putBook(book);
+        return Response.json({ ok: false, reason, tripped: book.tripped, log: book.log });
+      }
       const x = typeof c.text === "string" && c.text.trim() ? await readRequest(c.text) : { amount: String(c.amount ?? ""), untilLocal: String(c.untilLocal ?? "") };
       if (!/^\d+(\.\d{1,6})?$/.test(x.amount.trim())) throw new BadPilot("The amount must be a number like 200 or 12.50.");
       const amount = BigInt(Math.round(Number(x.amount) * 1e6));

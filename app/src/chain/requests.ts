@@ -9,7 +9,7 @@ import accountAbi from "./abi/BulkheadAccount.json";
 import factoryAbi from "./abi/BulkheadFactory.json";
 import { pub, readAccount, fmt } from "./account";
 import { CHAIN_ID, DEPLOYMENT, NATIVE, TOKENS } from "./config";
-import { pilotScheduleDigestBytes, type PilotSettingsJson } from "./pilotSchedule";
+import { pilotScheduleDigestBytes, pilotReopenDigestBytes, type PilotSettingsJson } from "./pilotSchedule";
 
 export const PURPOSE = "bulkhead-request-v1";
 
@@ -24,7 +24,8 @@ export type Intent =
   | { kind: "Seal" }                                                  // immediate: the phone seals on its own
   | { kind: "CancelSafetyChange"; pending: Address }                  // immediate: veto a phone replacement
   | { kind: "Deploy"; salt: Hex; init: DeployInit }                   // the phone authorises its new account
-  | { kind: "PilotSchedule"; settings: PilotSettingsJson };            // off chain: a looser pilot schedule, checked by the server
+  | { kind: "PilotSchedule"; settings: PilotSettingsJson }             // off chain: a looser pilot schedule, checked by the server
+  | { kind: "PilotReopen"; trippedAt: number };                      // off chain: reopen a wall the tripwire closed, checked by the server
 
 /** BulkheadAccount.Init with amounts as decimal strings (JSON has no bigint). */
 export interface DeployInit {
@@ -56,6 +57,7 @@ export function encodeIntent(i: Intent): { kindId: number; data: Hex } {
     case "CancelSafetyChange": return { kindId: 3, data: encodeAbiParameters([{ type: "address" }], [i.pending]) };
     case "Deploy": throw new Error("Deploy is signed against the factory, not an account.");
     case "PilotSchedule": throw new Error("A pilot schedule is signed for the pilot service, not the account.");
+    case "PilotReopen": throw new Error("Reopening the pilot's wall is signed for the pilot service, not the account.");
   }
 }
 
@@ -103,6 +105,15 @@ export async function describe(account: Address, i: Intent): Promise<{ title: st
       return { title: "Loosen the pilot's schedule", now: cur?.saved && cur.settings ? scheduleText(cur.settings) : "No schedule yet", after: scheduleText(i.settings), delayed: false,
         check: `This lets the pilot open the walls of ${short} more than it does now, never above the walls your phone signed. It changes only the schedule. Nothing moves on chain until the pilot follows it.` };
     }
+    case "PilotReopen": {
+      // What tripped comes from the pilot service, not from the request. The signature only fits this one trip.
+      const cur = await fetch(`/api/pilot?account=${account}`).then((r) => r.json()).catch(() => null) as { tripped?: { at: number; reason: string } | null } | null;
+      const same = cur?.tripped?.at === i.trippedAt;
+      const when = new Date(i.trippedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+      return { title: "Reopen the wall the pilot closed", now: same && cur?.tripped ? `Closed to zero at ${when}: ${cur.tripped.reason}` : `The pilot doesn't show this trip as open now (${when}). Approving changes nothing.`,
+        after: "The pilot follows your schedule again", delayed: false,
+        check: `This lets the pilot open the walls of ${short} again, never above the walls your phone signed. Only approve it if you know why the pilot closed it. It fits only the trip at ${when}.` };
+    }
     case "Deploy": {
       const lines = i.init.assets.map((a, k) => { const t = tokenOf(a), p = i.init.policies[k]; const f = (n: string) => fmt(BigInt(n), t.decimals, t.places);
         return `${t.symbol}: ${f(p.perTxCap)} per payment, ${f(p.periodCap)} a day, ${f(p.floor)} kept in Savings`; });
@@ -132,7 +143,7 @@ export function openRequest(envelopeText: string, mnemonic: string, index = 0): 
 
 /** Phone: sign with the Safety key (ML-DSA-87) and build the exact calldata the relayer will send. */
 export async function signIntent(phone: UnifiedAccount, account: Address, i: Intent): Promise<Hex> {
-  if (i.kind === "PilotSchedule") throw new Error("A pilot schedule is approved with approveQueued, not sent to the chain.");
+  if (i.kind === "PilotSchedule" || i.kind === "PilotReopen") throw new Error("A pilot change is approved with approveQueued, not sent to the chain.");
   if (i.kind === "Deploy") {
     if (i.init.safety.toLowerCase() !== (phone.evm as string).toLowerCase()) throw new Error("This account would be guarded by a different phone.");
     const init = initArgs(i.init);
@@ -164,6 +175,7 @@ export async function approveQueued(q: { id: string; account: Address; envelope:
   const body = openRequest(q.envelope, mnemonic);
   if (body.account.toLowerCase() !== q.account.toLowerCase()) throw new Error("This request doesn't match its account. Don't approve it.");
   if (body.intent.kind === "PilotSchedule") return approveSchedule(q.id, body.account, body.intent.settings, phone, step);
+  if (body.intent.kind === "PilotReopen") return approveReopen(q.id, body.account, body.intent.trippedAt, phone, step);
   step("Signing with your post-quantum key", 0.35);
   const data = await signIntent(phone, body.account, body.intent);
   step("Sending to QoreChain", 0.6);
@@ -185,6 +197,23 @@ async function approveSchedule(id: string, account: Address, settings: PilotSett
   step("Sending to the pilot", 0.6);
   const r = await fetch("/api/pilot", { method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ account, change: { kind: "approve-settings", settings, nonce: nonce.toString(), deadline: deadline.toString(), phoneSig } }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.ok) throw new Error(j.error ?? "The pilot refused the approval. Nothing changed.");
+  await fetch(`/api/requests?id=${id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "approved", offchain: true }) }).catch(() => undefined);
+  step("Approved", 1);
+  return "";
+}
+
+/** Phone: reopen the wall the pilot's tripwire closed. Signed off chain for that one trip; the server checks it against this phone's on-chain key. Returns "". */
+async function approveReopen(id: string, account: Address, trippedAt: number, phone: UnifiedAccount, step: (l: string, p: number) => void): Promise<string> {
+  if (!Number.isSafeInteger(trippedAt) || trippedAt <= 0) throw new Error("This request doesn't name a trip. Don't approve it.");
+  step("Signing with your post-quantum key", 0.35);
+  const nonce = BigInt(Date.now());
+  const deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
+  const phoneSig = toHex(pqcSign(phone.pqc.secretKey, pilotReopenDigestBytes(account, trippedAt, nonce, deadline)));
+  step("Sending to the pilot", 0.6);
+  const r = await fetch("/api/pilot", { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ account, change: { kind: "approve-reopen", nonce: nonce.toString(), deadline: deadline.toString(), phoneSig } }) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok || !j.ok) throw new Error(j.error ?? "The pilot refused the approval. Nothing changed.");
   await fetch(`/api/requests?id=${id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "approved", offchain: true }) }).catch(() => undefined);

@@ -37,6 +37,7 @@ A fixed cap has one height. The pilot lets the wall sit low while you are asleep
 4. A raise closes itself. `effectiveCaps` returns the resting values once `until` has passed, even if the pilot is gone. A raise can last one period at most, or `setLive` reverts with `TooFarAhead`.
 5. If you need more, you type something like "about 12 until 18:00". The model reads two fields, the amount and the time. `planRequest` in `app/server/pilot.ts` decides. It clamps to the ceiling and ends the raise at the earlier of your time and the start of quiet hours.
 6. Inside quiet hours the pilot refuses to raise at all. A thief with your laptop could be the one asking, so the request goes to your phone.
+7. The pilot watches the chain for a tripwire. A held payment, a laptop payment inside quiet hours, or 3 laptop payments within 10 minutes closes every wall to zero. Until the phone signs a reopen with ML-DSA-87, nothing leaves Everyday and the pilot opens nothing. It runs every 5 minutes from GitHub Actions and whenever the app is opened.
 
 Why this is safe to hand to an agent:
 
@@ -53,6 +54,7 @@ It is live and proven. On v3, the night wall closed to 0.40 and a stolen laptop'
 | :--- | :--- | :--- |
 | Stolen laptop, by day | At most the blast radius: the smaller of the per-payment cap, the period allowance left and the balance above the floor. Anything over a wall takes nothing and seals the account | `spend` checks `perTxCap`, `periodCap`, the floor and the payee list. A breach trips and seals, and moves nothing |
 | Stolen laptop, in quiet hours | At most the resting wall, 0.30 to 0.40 in the live runs. A bigger spend that still fits the policy is held, nothing moves, the account is not sealed | `effectiveCaps` returns the pilot's resting values. `HeldByPilot` is emitted. The pilot also refuses to raise in quiet hours |
+| Stolen laptop keeps trying | Nothing more. The first held payment trips the pilot's tripwire, which closes every wall to zero until the phone reopens it | `tripwire` in `app/server/pilot.ts` reads `HeldByPilot` and `Spent` events. Only a phone-signed reopen clears it |
 | Stolen laptop tries to reopen the wall | Nothing | `setLive` and `tightenPolicy` from the laptop revert with `NotTighter`. It also cannot widen anything else |
 | Hijacked pilot | The policy the phone signed, the same as a fixed cap. Never more | `AbovePolicy`, `TooFarAhead`. The pilot cannot move funds, cannot cancel widenings and cannot be the laptop or phone key |
 | Hijacked bill agent | Its own account balance, in fUSD only, 10 per payment, 25 per day, only `fUSD.transfer`. The Bulkhead account is out of its reach | The chain's spending rule on the agent account. A hijacked key calling `spend` on the Bulkhead account hits `NotEveryday` |
@@ -117,7 +119,7 @@ flowchart TB
         Pair["Pairing relay"]
     end
 
-    Blob[("Vercel Blob")]
+    Store[("Upstash Redis")]
     Model["Claude Haiku via SERV, reads text only"]
 
     subgraph Chain["QoreChain testnet, chain id 9800"]
@@ -138,8 +140,8 @@ flowchart TB
     Agents -->|pays from its own account| Chain
     Pilot --> Model
     Agents --> Model
-    Queue --> Blob
-    Pilot --> Blob
+    Queue --> Store
+    Pilot --> Store
     Factory -->|deploys| Account
     Account --> Pre
     Pilot -->|checks phone signatures| Pre
@@ -225,7 +227,7 @@ You need a laptop browser, a phone browser and a little QOR. The live app runs o
 
 1. On the laptop, open [bulkhead-blush.vercel.app](https://bulkhead-blush.vercel.app) and press **Create my Bulkhead**.
 2. Choose a password of at least 10 characters. It encrypts your laptop key in the browser. Bulkhead never stores it.
-3. Send a little QOR to the laptop address that setup shows. The laptop key pays its own fees. QoreX works, and so does any wallet that can send QOR on the testnet.
+3. Send a little QOR to the laptop address that setup shows. The laptop key pays its own fees, and registers its own post-quantum key on chain the first time it acts. QoreX works, and so does any wallet that can send QOR on the testnet.
 4. On the phone, open [`/#/phone`](https://bulkhead-blush.vercel.app/#/phone) and create your Safety key. This is an ML-DSA-87 key that lives on the phone. Register it when the page asks. It needs a little QOR for gas.
 5. Pair the two with the Bulkhead Handshake. Scan the QR on the laptop with the phone. Both screens then show four words. Confirm they match.
 6. Set your walls: how much you spend in a day, and how much you keep. Bulkhead turns that into caps.
@@ -237,27 +239,32 @@ A live demo account to inspect: [`0xB5a69255…0Df6`](https://explore.qore.netwo
 
 ## Proof on testnet
 
-Everything below ran on `qorechain-diana`. Full results, including every refusal, are in [`docs/DEPLOYMENTS.md`](docs/DEPLOYMENTS.md). The transactions are on the [QoreChain explorer](https://explore.qore.network).
+Everything below ran on `qorechain-diana`. Full results, including every refusal, are in [`docs/DEPLOYMENTS.md`](docs/DEPLOYMENTS.md). The transactions are on the [QoreChain explorer](https://explore.qore.network). Choose **Testnet** at the top of the explorer first: it opens on mainnet, and it finds transactions by their native hash, which is what these links use.
 
 | Run | Result | Transaction |
 | :--- | :--- | :--- |
-| v3 night wall (21 Nov, round 25) | Pilot lowers the wall for the night, blast radius 0.40 | [`0x2fbbdad9…8483`](https://explore.qore.network/tx/0x2fbbdad9becb756118dfc7434da9f87deb07e94c26de91241201e5aba5458483) |
-| v3 night wall | Stolen laptop tries 5.00 at night: `HeldByPilot`, nothing moved, not sealed | [`0x9feb3542…6771`](https://explore.qore.network/tx/0x9feb3542945699996bd3c4aae0b8ca84dee86c7a4edfb5d12b481c971cc26771) |
+| v3 night wall (21 Nov, round 25) | Pilot lowers the wall for the night, blast radius 0.40 | [`0x2fbbdad9…8483`](https://explore.qore.network/tx/ACD65931CCEE4169067DB0BEFB5A2AC9C5FE2649BFE562B7DE94057C9A17A8A0) |
+| v3 night wall | Stolen laptop tries 5.00 at night: `HeldByPilot`, nothing moved, not sealed | [`0x9feb3542…6771`](https://explore.qore.network/tx/D1D532374DEE171EA71AEBCD1EB6A9B6F6CD860E55B917709B03753B8EA357D4) |
 | v3 night wall | Stolen laptop tries to reopen the wall: refused, `NotTighter` | no tx, refused in simulation |
-| v3 night wall | Pilot raises to the ceiling for 40 blocks, blast radius 5.00 | [`0xfcb0c383…281b`](https://explore.qore.network/tx/0xfcb0c383a499067119fbce26031d92f4b640c28da3ec59e26a9205fc46c8281b) |
+| v3 night wall | Pilot raises to the ceiling for 40 blocks, blast radius 5.00 | [`0xfcb0c383…281b`](https://explore.qore.network/tx/363F5ACA0DB7877EA915A6CA7C41B660C7C6EAE9C72248DBAD3AE6C3C1536F74) |
 | v3 night wall | Pilot tries to go above the ceiling: refused, `AbovePolicy` | no tx, refused in simulation |
-| v4 instant pilot (25 Nov, round 27) | Account created with the pilot in the phone-signed `Init`, pilot set from block one | [`0xca1c60fe…025d`](https://explore.qore.network/tx/0xca1c60fe0f73f450c04a53fabf254640fb790f0edc097a10a61f140f9bc6025d) |
-| v4 instant pilot | Pilot lowers the wall right after creation, caps 0.40 / 0.40 | [`0x5053704c…233a`](https://explore.qore.network/tx/0x5053704c3b8ed01dcbc04a1e4d2c918f84ebca0fba9f7394a41cc5686579233a) |
-| v4 instant pilot | Phone replaces the pilot with a real ML-DSA-87 signature, effective at once | [`0xf9ae8c9d…4b11`](https://explore.qore.network/tx/0xf9ae8c9dbaf8bbf6b3c716824bc980d00202a6d351b787acd44dbd9320894b11) |
+| v4 instant pilot (25 Nov, round 27) | Account created with the pilot in the phone-signed `Init`, pilot set from block one | [`0xca1c60fe…025d`](https://explore.qore.network/tx/682D15B3237A7E325DBCE8739560CA8E379FC710C06745BE12379AE8A9F7FC00) |
+| v4 instant pilot | Pilot lowers the wall right after creation, caps 0.40 / 0.40 | [`0x5053704c…233a`](https://explore.qore.network/tx/5BC44C5D71034B5B26CEB38D8CE125F6FAC3A33744373BDCCCC46C9E8BBE80F5) |
+| v4 instant pilot | Phone replaces the pilot with a real ML-DSA-87 signature, effective at once | [`0xf9ae8c9d…4b11`](https://explore.qore.network/tx/B75229E1071951BD34C7702E6B5ED25910B7FDA83C5EA1E3BD05A026A7699CFE) |
 | v4 instant pilot | Forged phone signature to change the pilot: refused, `BadSafetySignature` | no tx |
-| Live site, round 26 (21 Nov) | Phone authorises a v3 account, the live relayer deploys it | [`0xba5720b6…41d6`](https://explore.qore.network/tx/0xba5720b66bd79ceadbb105dba3bf77dca1c9551f9c287e9602eceb46337641d6) |
-| Live site, round 26 | Laptop saves quiet hours, the live pilot closes the wall to 0.30 | [`0x500f34a2…0f8a`](https://explore.qore.network/tx/0x500f34a27153fb88a5e77cae4040c98a7bfab17828789801d919cb7406d90f8a) |
-| Live site, round 26 | Stolen laptop tries 5.00, held, 10.00 fUSD left, not sealed | [`0xbe76fc8c…b65a`](https://explore.qore.network/tx/0xbe76fc8c5abb970e97993a7327d821dc97808c3b042ab410e98989a8e7c4b65a) |
-| Live site, round 26b | Daytime hours saved, the wall opens, 0.30 to 2.00 | [`0x5e45a990…b9bf`](https://explore.qore.network/tx/0x5e45a9908dae5591e104680eb21fba20109219ecd5a24835eff5c1dd5fa5b9bf) |
-| Live site, round 26b | "about 4 until 14:00, shopping": the model read 4 and 14:00, code opened within the ceiling, blast radius 4.00 | [`0x72cf2e47…04d2`](https://explore.qore.network/tx/0x72cf2e470b258733f133812fd60fadb1163fb816014e6fa80decad2e5ad404d2) |
-| Live site, round 26b | Back to quiet hours, blast radius 0.30 | [`0x9a7a337c…96f8`](https://explore.qore.network/tx/0x9a7a337c8e6de514f66eb5ed7161fb35f8bb1a190338e2125f675d50a65896f8) |
+| Live site, round 26 (21 Nov) | Phone authorises a v3 account, the live relayer deploys it | [`0xba5720b6…41d6`](https://explore.qore.network/tx/788E82BA693AB6D35808F850996C7D11BACD36A043C68D0C50CB4E35361E4F6E) |
+| Live site, round 26 | Laptop saves quiet hours, the live pilot closes the wall to 0.30 | [`0x500f34a2…0f8a`](https://explore.qore.network/tx/383CEA27791A393CFD5B2617E2B907EDDA6F6E815A3DCF2C9DB4D02DB82B68B6) |
+| Live site, round 26 | Stolen laptop tries 5.00, held, 10.00 fUSD left, not sealed | [`0xbe76fc8c…b65a`](https://explore.qore.network/tx/8E8F7B168D87D3DF9CA748168CB4BA0C9BB96205E3527BF164801697B1CBC6A5) |
+| Live site, round 26b | Daytime hours saved, the wall opens, 0.30 to 2.00 | [`0x5e45a990…b9bf`](https://explore.qore.network/tx/7EF040665BCF269B3D5D33F3457136EF9CC16C317CE5DA8C5418A6D66758B42E) |
+| Live site, round 26b | "about 4 until 14:00, shopping": the model read 4 and 14:00, code opened within the ceiling, blast radius 4.00 | [`0x72cf2e47…04d2`](https://explore.qore.network/tx/5C1330D560838261BDE608FC75E47880E58C5B049BA784516C7EA0AC2C79FAC7) |
+| Live site, round 26b | Back to quiet hours, blast radius 0.30 | [`0x9a7a337c…96f8`](https://explore.qore.network/tx/C34DDD6562C74B26C0D0C7B49C6CC958DB1F3FF0FBF0F4725A1E7C9196422674) |
 | Live site on v4, round 28 (25 Nov) | The phone authorised a v4 account with the live pilot in its `Init`. Quiet hours saved, the wall closed to 0.30 / 0.30 at once, no widening delay. Hashes `0xc6eb942e…a373` and `0x188f9842…a578` | account `0xE44f9475…53C2`, not linked |
-| Stolen-key seal (21 Nov, round 22) | Stolen key spends 6.00 over the 5.00 cap: tx success, sealed, nothing moved | [`0x687fb72d…878b`](https://explore.qore.network/tx/0x687fb72d3e47b14a2f105d5aabdff640f2486508f7fd1fcb8ac4c1f51bb6878b) |
+| Live site, new account (27 Nov, round 30) | Phone and laptop paired with the Handshake, then the phone approved the account and the live relayer deployed it | [`1C97E57F…2ECF`](https://explore.qore.network/tx/1C97E57F64420B3DF39C6A1CD08EF01782E33FEC65A26F6757137B04F0732ECF) |
+| Live site, round 30 | Quiet hours saved, the live pilot closes the wall to 0.25 | [`F7C8655D…57FA`](https://explore.qore.network/tx/F7C8655D38DA4CB29F107CBDE9B071863AACF0CAF972074BB0F0B462999657FA) |
+| Live site, round 30 | Stolen laptop key sends 5.00 at night: `HeldByPilot`, nothing moved | [`34A669A4…8EF3`](https://explore.qore.network/tx/34A669A4B970159795F06247C0E70BFA2C6F461434B8FEBEFBFCDF802FE58EF3) |
+| Live site, round 30 | About a minute later the tripwire closes every wall to zero | [`BF333A24…6AE7`](https://explore.qore.network/tx/BF333A249921DFDDEDC9CE63D4DDB2079531F8A6A1C61E1974727EE8636B6AE7) |
+| Live site, round 30 | The phone signs the reopen with ML-DSA-87, the pilot returns the wall to 0.25 | [`86353495…6221`](https://explore.qore.network/tx/8635349518ACCEEE85703B4078276A0CEF9BB5A766BF5AA8CF0960DCBF876221) |
+| Stolen-key seal (21 Nov, round 22) | Stolen key spends 6.00 over the 5.00 cap: tx success, sealed, nothing moved | [`0x687fb72d…878b`](https://explore.qore.network/tx/52E66F3E23B4A78F7BA5226ABD93687A565E19F256F4DB29E34A92666EF6889C) |
 | Forged signatures | Factory deploy, phone seal, `spendWithApproval`, a pilot change and the relayer all refused forged ML-DSA-87 signatures. The relayer answered 422 in simulation and spent no gas | refusals have no transaction |
 
 Round 28 is in [`docs/DEPLOYMENTS.md`](docs/DEPLOYMENTS.md#live-site-on-v4-25-november-round-28). The v3 night wall numbers come from the rerun on factory v3 `0xcec5ef27…9db6` after the laptop-can-only-lower fix.
@@ -286,6 +293,7 @@ Every address, including legacy factories and earlier test accounts:
 | `BulkheadFactory` round 20 | [`0x3df113cf4a7ddb5d22eed33f8de430d531026355`](https://explore.qore.network/address/0x3df113cf4a7ddb5d22eed33f8de430d531026355) | Superseded by v2. Live parity run, commit `6c7778a` |
 | `BulkheadFactory` round 20, first | [`0x72d28d81edbd8109689620fc73a843d41990b843`](https://explore.qore.network/address/0x72d28d81edbd8109689620fc73a843d41990b843) | Superseded, before the refilling allowance and sentinel fixes |
 | Live demo account, v4 | [`0xB5a69255fE41c9ab4D9A52478A22966E3ddE0Df6`](https://explore.qore.network/address/0xB5a69255fE41c9ab4D9A52478A22966E3ddE0Df6) | Made with the owner's phone on 25 November. The account the live app shows |
+| Video account, v4 | [`0x29dd179f39d79Dd064F3FE5AFFe4A11b2914D682`](https://explore.qore.network/address/0x29dd179f39d79Dd064F3FE5AFFe4A11b2914D682) | Round 30, made live through the UI on 27 November for the video: held payment, tripwire and phone reopen |
 | Test account, v4 | [`0x8F8831056835ff1b88f3C46350eBFe8BC90c5bc4`](https://explore.qore.network/address/0x8F8831056835ff1b88f3C46350eBFe8BC90c5bc4) | Round 27, `loosenDelay` 2,500 |
 | Round 26 account, v3 | [`0x6759AD2986A2CFABBC1be669c7eaad7c8d7382df`](https://explore.qore.network/address/0x6759AD2986A2CFABBC1be669c7eaad7c8d7382df) | Deployed through the live relayer from the phone |
 | Pilot test account, v3 | [`0xeCF93Fe3c4565e4cF7a809Deb35482BFcbDDC7Ad`](https://explore.qore.network/address/0xeCF93Fe3c4565e4cF7a809Deb35482BFcbDDC7Ad) | Round 25 night wall run |
@@ -316,7 +324,7 @@ bulkhead/
 │   │   └── test/       Server unit tests
 │   ├── scripts/        Build Output API packaging for Vercel
 │   └── e2e/            Setup flow and QoreX funding checks
-├── docs/               DEPLOYMENTS.md, DESIGN_SYSTEM.md, brand assets
+├── docs/               DEPLOYMENTS.md, THREAT_MODEL.md, DESIGN_SYSTEM.md, brand assets
 ├── AI_USAGE.md
 └── LICENSE
 ```
@@ -329,16 +337,16 @@ You need Node 22.
 cd app && npm ci && npm run dev
 ```
 
-The app starts on Vite's default port. Without `BLOB_READ_WRITE_TOKEN` the queue, pairing relay and pilot records use memory, or a JSON file if `QUEUE_FILE` is set. The functions in `app/functions` are deployed on Vercel. Browser reads go through the `rest` gateway because the public REST API sends no CORS headers.
+The app starts on Vite's default port. Without `KV_REST_API_URL` and `KV_REST_API_TOKEN` (Upstash Redis) the queue, pairing relay, pilot records and bills use memory, or a JSON file if `QUEUE_FILE` is set. The functions in `app/functions` are deployed on Vercel. Browser reads go through the `rest` gateway because the public REST API sends no CORS headers.
 
 ## Tests
 
 ```bash
 cd contracts && npm ci && npx hardhat test                    # 69 passing
-cd app && node --import tsx --test server/test/*.test.ts     # 24 passing
+cd app && node --import tsx --test server/test/*.test.ts     # 52 passing
 ```
 
-The contract tests cover the account, the invariants and the pilot. The server tests cover the bill policy, the pilot plan, the approval queue, the pairing relay and the bill agent. The live testnet runs are summarised in `docs/DEPLOYMENTS.md`.
+The contract tests cover the account, the invariants and the pilot. The server tests cover the bill policy, the pilot plan and tripwire, the approval queue and its proofs, the replay guard, the relayer allowlist, the phone signature check, the pairing relay and the bill agent. The live testnet runs are summarised in `docs/DEPLOYMENTS.md`.
 
 ## Environment variables
 
@@ -357,7 +365,7 @@ Names only. Set them in the Vercel dashboard as Sensitive variables. Never commi
 | `BULKHEAD_ACCOUNT` | The account the bill agent files `ask-phone` requests against |
 | `PHONE_QOR` | The phone's `qor1` address, the recipient of those sealed requests |
 | `SERV_API_KEY` | Access to Claude Haiku through SERV, for the pilot and the bill agent |
-| `BLOB_READ_WRITE_TOKEN` | Vercel Blob for the queue, pairing sessions, pilot records and bills |
+| `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Upstash Redis for the queue, pairing sessions, pilot records, bills and single-use claims |
 | `QUEUE_FILE` | Local development only, a JSON file for the approval queue |
 | `VITE_GATEWAY` | Local development only, overrides the gateway the browser calls |
 
@@ -390,7 +398,7 @@ Two outcomes are not errors. A tripwire spend returns tx code 0, seals the accou
 - This is testnet only. There is no mainnet deployment.
 - There is one shared bill-agent account and one daily chain cap for all users. It is a demo of the agent, not a per-user agent.
 - The pilot service is centralised. One server holds the pilot key. The contract bounds it, and the laptop can remove the pilot at once with `removePilot`, but a down or hostile pilot service means walls stay where they were.
-- Vercel's scheduled runs happen once a day (the pilot at 06:43 UTC, the bills at 10:17 UTC). The morning raise happens when the app is opened, which triggers a pilot tick.
+- The pilot ticks every 5 minutes from a GitHub Actions schedule, and whenever the app is opened. GitHub can run a schedule late, so a tripwire or a morning raise can lag by some minutes. Bills run once a day on Vercel (10:17 UTC).
 - In daytime the laptop key alone can ask the pilot for more room, up to the phone-signed ceiling. Loosening the schedule itself needs the phone.
 - The web app is served from our server. A compromised deployment could serve bad JavaScript. A native or locally built app would remove that, and this one is not.
 - Old v3 accounts keep the delayed pilot path. Adding a pilot to them is a widening that waits `loosenDelay`.
@@ -399,7 +407,7 @@ Two outcomes are not errors. A tripwire spend returns tx code 0, seals the accou
 
 ## Built with AI
 
-Bulkhead was built with Claude Code and Claude Haiku subagents, and Claude Haiku through SERV is the runtime model inside the pilot and the bill agent. Security-critical contracts and the policy functions were reviewed line by line, and the model never makes a money decision. What the human owner did, and how each tool was used, is in [AI_USAGE.md](AI_USAGE.md).
+Bulkhead was built with Claude Code and Claude subagents, and Claude Haiku through SERV is the runtime model inside the pilot and the bill agent. Security-critical contracts and the policy functions were reviewed line by line, and the model never makes a money decision. What the human owner did, and how each tool was used, is in [AI_USAGE.md](AI_USAGE.md).
 
 ## License
 

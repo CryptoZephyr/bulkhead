@@ -8,7 +8,8 @@
 //   GET  /api/bills?cron=1                     -> the daily run: pays every due, approved bill.
 // The agent pays from its own capped account. decide() makes every money decision.
 import Anthropic from "@anthropic-ai/sdk";
-import { hasStore } from "../server/blobjson.js";
+import { hasStore, setOnce } from "../server/blobjson.js";
+import { firstUse, REPLAYED } from "../server/replay.js";
 import { createPublicClient, http, verifyMessage, type Address, type Hex } from "viem";
 import { evmToQor } from "@qorechain/sdk";
 import { sealToAddresses } from "@qorechain/qoreseal/network";
@@ -109,6 +110,8 @@ async function handler(req: Request): Promise<Response> {
     const laptop = (await pub.readContract({ address: account as Address, abi: accountAbi, functionName: "everyday" })) as Address;
     const ok = await verifyMessage({ address: laptop, message: changeMessage(account, body.change, body.at), signature: body.signature ?? "0x" }).catch(() => false);
     if (!ok) return Response.json({ error: "This change wasn't signed by the account's laptop key." }, { status: 401 });
+    // Single-use signatures. No store (local runs): no replay guard.
+    if (hasStore() && !(await firstUse(body.signature!, setOnce))) throw new BadBill(REPLAYED);
 
     const book = await store().get(account);
     const c = body.change;

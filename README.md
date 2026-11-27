@@ -2,7 +2,7 @@
 
 **Damage-bounded money whose blast radius breathes: the most a stolen laptop can take follows your day, and only the post-quantum key on your phone can widen a wall.**
 
-[Open the app](https://bulkhead-blush.vercel.app) · [Phone view](https://bulkhead-blush.vercel.app/#/phone) · [Demo video](VIDEO_LINK_TODO) · [Contracts on testnet](#deployments)
+[Open the app](https://bulkhead-blush.vercel.app) · [Phone view](https://bulkhead-blush.vercel.app/#/phone) · [Demo video](https://youtu.be/0_7VaBc4EeY) · [Contracts on testnet](#deployments)
 
 <img src="docs/screenshots/hull.png" alt="Bulkhead Hull screen: 0.25 fUSD at risk during quiet hours, against a 2.50 fixed cap" width="820">
 

@@ -131,7 +131,7 @@ A first v3 factory (0x6b1f671a674ebe6d0bcfba235e9f4874e431626b) let the laptop r
 
 ## Live site end to end (21 November, round 26)
 
-Run against https://bulkhead-blush.vercel.app through its own APIs only (relay, pilot, pair). The production pilot key lives only on Vercel. Script: qorex-spike spikes/sdk/live-prod-pilot.mjs.
+Run against https://bulkhead-blush.vercel.app through its own APIs only (relay, pilot, pair). The production pilot key lives only on Vercel.
 
 | Step | Result | Transaction |
 |---|---|---|
@@ -171,3 +171,23 @@ Adding the pilot widens nothing (it can only move the live walls inside the phon
 | Pilot lowers the wall right after creation | caps 0.40 / 0.40 | 0x5053704c3b8ed01dcbc04a1e4d2c918f84ebca0fba9f7394a41cc5686579233a |
 | Forged phone signature to change the pilot | refused, BadSafetySignature | |
 | Phone replaces the pilot, effective at once (real ML-DSA-87) | production pilot set, no delay | 0xf9ae8c9dbaf8bbf6b3c716824bc980d00202a6d351b787acd44dbd9320894b11 |
+
+## Live site on v4 (25 November, round 28)
+
+After the v4 merge, with the relayer serving v4, v3 and v2 accounts.
+
+| Step | Result | Transaction |
+|---|---|---|
+| Phone authorises a v4 account with the live pilot in its Init, live relayer deploys it | account 0xE44f94756f274bb41522077Af66F8213733453C2, pilot from block one, loosenDelay 2,500 | 0xc6eb942ee418004734edcbcaff30956e9e95e0ab8e8df755a908c0d7c15aa373 |
+| Quiet hours saved, the live pilot closes the wall at once | caps 0.30 / 0.30, no widening delay involved | 0x188f9842e192ddfd9191a5f30fc3c0823ab9b7209e095b889531ec5062b3a578 |
+
+## Design findings from earlier testnet rounds
+
+These red-team results shaped the contracts. Transaction hashes were recorded shortened at the time.
+
+| Finding | What happened on testnet | Design rule it led to |
+|---|---|---|
+| A window that lists a token exposes the whole balance | With a stolen permit, an attacker called `permit` and `transferFrom` from their own account and drained 200,000 test tokens while the owner's window, scoped to that token with maxTxs 1, still showed 0 of 1 used (0xccce3fc8...243d, 0x9ebf0f30...2ae) | EVM windows are scoped to the Bulkhead account only and never list a token |
+| The ecrecover gate checks the contract that runs ecrecover, not the target | A token called through another contract could not verify the owner's permit, but any contract in the owner's window scope can verify the owner's ECDSA signatures from anyone's transaction | The account never uses ecrecover |
+| Fee loss inside a window is bounded | A leaked key burning gas in a window with maxValue 300,000 uqor lost 0.140625 QOR in total and was refused once the budget ran out | Windows are short and small: 300 blocks, 3 transactions, 0.6 QOR |
+| Chain spending rules hold on the EVM lane | An agent key with a rule of 10 per execution and 25 per day, only `transfer`, executed an 8 transfer and was blocked at 50 | The bill agent runs on its own account under a chain spending rule |

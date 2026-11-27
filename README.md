@@ -260,7 +260,7 @@ Everything below ran on `qorechain-diana`. Full results, including every refusal
 | Stolen-key seal (21 Nov, round 22) | Stolen key spends 6.00 over the 5.00 cap: tx success, sealed, nothing moved | [`0x687fb72d…878b`](https://explore.qore.network/tx/0x687fb72d3e47b14a2f105d5aabdff640f2486508f7fd1fcb8ac4c1f51bb6878b) |
 | Forged signatures | Factory deploy, phone seal, `spendWithApproval`, a pilot change and the relayer all refused forged ML-DSA-87 signatures. The relayer answered 422 in simulation and spent no gas | refusals have no transaction |
 
-Round 28 is recorded in the spike log with shortened hashes only, so those two are not linked here. The v3 night wall numbers come from the rerun on factory v3 `0xcec5ef27…9db6` after the laptop-can-only-lower fix.
+Round 28 is in [`docs/DEPLOYMENTS.md`](docs/DEPLOYMENTS.md#live-site-on-v4-25-november-round-28). The v3 night wall numbers come from the rerun on factory v3 `0xcec5ef27…9db6` after the laptop-can-only-lower fix.
 
 ## Deployments
 
@@ -327,7 +327,7 @@ cd contracts && npm ci && npx hardhat test                    # 69 passing
 cd app && node --import tsx --test server/test/*.test.ts     # 24 passing
 ```
 
-The contract tests cover the account, the invariants and the pilot. The server tests cover the bill policy, the pilot plan, the approval queue, the pairing relay and the bill agent. The live testnet runs are summarised in `docs/DEPLOYMENTS.md`. The longer spike record is in [qorex-spike](https://github.com/CryptoZephyr/qorex-spike).
+The contract tests cover the account, the invariants and the pilot. The server tests cover the bill policy, the pilot plan, the approval queue, the pairing relay and the bill agent. The live testnet runs are summarised in `docs/DEPLOYMENTS.md`.
 
 ## Environment variables
 

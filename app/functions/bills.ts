@@ -8,6 +8,7 @@
 //   GET  /api/bills?cron=1                     -> the daily run: pays every due, approved bill.
 // The agent pays from its own capped account. decide() makes every money decision.
 import Anthropic from "@anthropic-ai/sdk";
+import { hasStore } from "../server/blobjson.js";
 import { createPublicClient, http, verifyMessage, type Address, type Hex } from "viem";
 import { evmToQor } from "@qorechain/sdk";
 import { sealToAddresses } from "@qorechain/qoreseal/network";
@@ -31,7 +32,7 @@ const accountAbi = [
 const ADDR = /^0x[0-9a-fA-F]{40}$/;
 
 let bills: BillStore | null = null;
-const store = () => (bills ??= process.env.BLOB_READ_WRITE_TOKEN ? new BlobBills() : new MemoryBills());
+const store = () => (bills ??= hasStore() ? new BlobBills() : new MemoryBills());
 
 function agentEnv(rule: Rule): AgentEnv | null {
   const e = process.env;

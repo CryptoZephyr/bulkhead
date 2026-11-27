@@ -12,7 +12,7 @@ import {
   hasSafetyKey, createSafetyKey, unlockSafetyKey, currentSafety, phoneReadiness, registerPhoneKeys, type SafetyKey,
 } from "../chain/device";
 import {
-  approveQueued, describe, openRequest, signIntent, targetOf, type Intent, type RequestBody,
+  approveQueued, refuseQueued, describe, openRequest, signIntent, targetOf, type Intent, type RequestBody,
   phoneAct, delayText, pendingPhoneChange,
 } from "../chain/requests";
 import { ActionButton, type Step } from "../ui/Button";
@@ -320,11 +320,7 @@ function Incoming({ req, safety, onAccount, onOutcome }: {
   async function refuse() {
     setBusy(true); setRefuseErr("");
     try {
-      const r = await fetch(`/api/requests?id=${encodeURIComponent(req.id)}`, {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "refused" }),
-      });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j.error ?? "The queue didn't take it.");
+      await refuseQueued({ id: req.id, account: req.account as Address }, safety.account);
       // A request you didn't ask for means the laptop may be compromised: seal the account from the phone.
       if (d.s === "ok") await phoneAct(safety.account, d.body.account, { kind: "Seal" }, () => undefined);
       onOutcome({ id: req.id, kind: "refused" });

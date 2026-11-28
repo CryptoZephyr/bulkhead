@@ -85,7 +85,7 @@ export function FooterRow() {
         <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontWeight: 850 }}><Mark size={24} />Bulkhead</span>
         <nav aria-label="Footer" className="foot-links">
           <a href="#/hull">Hull</a><a href="#/pay">Pay</a><a href="#/receive">Receive</a><a href="#/activity">Activity</a><a href="#/phone">Phone</a>
-          <a href="#/docs/what-is-bulkhead">How it works</a><a href="#/docs/someone-has-my-laptop">If your laptop is stolen</a><a href="#/help">Help</a><a href="#/proof">Contracts and proof</a>
+          <a href="#/docs/what-is-bulkhead">Docs</a><a href="#/help">Help</a><a href="#/proof">Contracts and proof</a>
           <a href="https://github.com/CryptoZephyr/bulkhead">Source code</a>
         </nav>
         <p className="foot-legal">QoreChain testnet. Use test funds only. © 2026 Bulkhead</p>

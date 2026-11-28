@@ -3,7 +3,7 @@
 // so the docs read as part of the product. Only written pages are listed: no placeholders.
 import { useEffect } from "react";
 import { Lockup } from "../ui/Mark";
-import { NetworkReadout } from "../ui/Shell";
+import { NetworkReadout, FooterRow } from "../ui/Shell";
 import { PAGES, SECTIONS, type DocPage } from "./pages";
 import "./docs.css";
 
@@ -51,6 +51,7 @@ export function DocsScreen({ slug }: { slug: string }) {
           </footer>
         </article>
       </div>
+      <FooterRow />
     </div>
   );
 }

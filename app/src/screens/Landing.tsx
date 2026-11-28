@@ -57,7 +57,7 @@ export function LandingScreen() {
             <li><strong>Your walls.</strong> You say how much you spend in a day and how much you keep. Bulkhead turns that into caps.</li>
             <li><strong>Your account.</strong> Your phone approves its creation, then you fund it from QoreX.</li>
           </ol>
-          <p className="muted">Want to check it first? <a href="#/proof">See the contracts and the testnet proof.</a></p>
+          <p className="muted">Want to check it first? <a href="#/docs/what-is-bulkhead">Read the docs</a>, or <a href="#/proof">see the contracts and the testnet proof</a>.</p>
         </section>
       </main>
       <FooterRow />

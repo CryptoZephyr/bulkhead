@@ -44,6 +44,10 @@ const QA: { q: string; a: string[] }[] = [
 export function HelpScreen() {
   return (
     <div className="help">
+      <a className="plate" href="#/docs/what-is-bulkhead" style={{ display: "grid", gap: 4, textDecoration: "none", color: "var(--on-plate)" }}>
+        <strong>Read the docs</strong>
+        <span style={{ color: "var(--on-plate-2)" }}>What Bulkhead is, and what to do if someone has your laptop.</span>
+      </a>
       <div className="help-list">
         {QA.map((item) => (
           <details key={item.q} className="plate help-item">

@@ -1,6 +1,10 @@
 import { defineConfig, type Plugin, type ViteDevServer } from "vite";
 import react from "@vitejs/plugin-react";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { execSync } from "node:child_process";
+
+// The commit the docs were built from, shown in every docs page footer.
+const COMMIT = (process.env.VERCEL_GIT_COMMIT_SHA ?? (() => { try { return execSync("git rev-parse HEAD").toString(); } catch { return "local"; } })()).trim().slice(0, 7);
 
 // Runs the server functions in functions/ inside the dev and preview servers, so the whole
 // app (gateway, relayer, approval queue, agent) works locally exactly as it will when deployed.
@@ -39,4 +43,5 @@ function apiBridge(): Plugin {
 
 export default defineConfig({
   plugins: [react(), apiBridge()],
+  define: { __COMMIT__: JSON.stringify(COMMIT) },
 });

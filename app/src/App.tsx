@@ -17,6 +17,7 @@ import { LandingScreen } from "./screens/Landing";
 import { PhoneScreen } from "./screens/Phone";
 import { SettingsScreen } from "./screens/Settings";
 import { SetupScreen } from "./screens/Setup";
+import { DocsScreen } from "./docs/Docs";
 
 type ScreenDef = { title: string; sentence: string; body: () => ReactElement; needsAccount?: boolean };
 
@@ -58,8 +59,9 @@ export function useRoute() {
 export default function App() {
   const route = useRoute();
   const s = SCREENS[route];
-  useEffect(() => { document.title = s ? `${s.title} · Bulkhead` : "Bulkhead"; }, [s]);
+  useEffect(() => { if (!route.startsWith("docs")) document.title = s ? `${s.title} · Bulkhead` : "Bulkhead"; }, [s, route]);
   if (route === "phone") return <PhoneScreen />;
+  if (route === "docs" || route.startsWith("docs/")) return <DocsScreen slug={route.slice(5)} />;
   if (route === "" || route === "landing" || !s) return <LandingScreen />;
   const body = s.needsAccount && !myAccount() ? <NoAccountYet /> : s.body();
   return <Shell route={route} title={s.title} sentence={s.sentence}>{body}</Shell>;

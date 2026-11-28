@@ -1,0 +1,73 @@
+/* Bulkhead docs: the app's own plates, seams and deck-sign type. Tokens only. */
+.docs { min-height: 100vh; background: var(--page); color: var(--text); font-family: var(--f-sans); }
+
+.docs-top { display: flex; align-items: center; gap: var(--s2); padding: var(--s2) var(--s4); background: var(--plate); color: var(--on-plate); border-bottom: var(--seam) solid var(--weld); }
+.docs-home { color: var(--on-plate); text-decoration: none; }
+.docs-tag { font-stretch: var(--widest); font-weight: 800; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; background: var(--lime); color: var(--plate); padding: 3px 8px; border-radius: var(--r-chip); }
+.docs-readout { margin-left: auto; font-size: 13px; color: var(--on-plate-2); }
+.docs-open { padding: 8px 14px; }
+
+.docs-body { display: grid; grid-template-columns: 260px minmax(0, 760px); gap: var(--s6); padding: var(--s5) var(--s4) var(--s8); justify-content: center; }
+
+/* The rail is a stack of compartments joined by seams, like the hull row turned on its side. */
+.docs-rail { position: sticky; top: var(--s3); align-self: start; display: grid; gap: var(--seam); }
+.docs-compartment { background: var(--plate); border-radius: var(--r-plate); padding: var(--s2); display: grid; gap: 6px; }
+.docs-compartment-name { font-stretch: var(--widest); font-weight: 800; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--lime); margin-bottom: 4px; }
+.docs-compartment a { color: var(--on-plate); text-decoration: none; font-size: 15px; padding: 6px 10px; border-left: 3px solid transparent; border-radius: 2px; }
+.docs-compartment a:hover { background: var(--weld); }
+.docs-compartment a.on { border-left-color: var(--lime); background: var(--weld); font-weight: 600; }
+
+.docs-page { display: grid; gap: var(--s3); align-content: start; }
+.docs-section-sign { font-stretch: var(--widest); font-weight: 800; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--lime-deep); }
+.docs-page h1 { font-stretch: var(--widest); font-weight: 850; font-size: clamp(36px, 5vw, 56px); line-height: 1.02; margin: 0; letter-spacing: -.01em; }
+.docs-lead { font-size: 22px; line-height: 1.45; margin: 0; color: var(--text); max-width: 62ch; }
+
+/* Plates: light by default, with one thick wall edge on the left. */
+.docs-plate { background: var(--sheet); border-left: 8px solid var(--plate); border-radius: var(--r-plate); padding: var(--s3) var(--s4); display: grid; gap: var(--s2); }
+.docs-plate h2 { font-stretch: var(--wide); font-weight: 800; font-size: 22px; margin: 0; }
+.docs-plate p, .docs-plate li { font-size: 17px; line-height: 1.6; margin: 0; }
+.docs-plate ol, .docs-plate ul { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; }
+.docs-plate.dark { background: var(--plate); color: var(--on-plate); border-left-color: var(--lime); }
+.docs-plate.dark h2 { color: var(--on-plate); }
+.docs-plate.alarm { border-left: 0; padding-top: calc(var(--s3) + 10px); position: relative; overflow: hidden; }
+.docs-plate.alarm::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 10px; background: repeating-linear-gradient(-45deg, var(--plate) 0 12px, var(--lime) 12px 24px); }
+.docs-rule { font-stretch: var(--wide); font-weight: 800; font-size: 26px !important; line-height: 1.25 !important; color: var(--lime); }
+.docs-steps strong { color: var(--lime); }
+
+/* Compartment row */
+.docs-hullrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--seam); background: var(--plate); padding: var(--seam); border-radius: var(--r-plate); }
+.docs-cell { background: var(--page); padding: var(--s2); display: grid; gap: 6px; align-content: start; border-radius: 2px; }
+.docs-cell strong { font-stretch: var(--wide); font-weight: 800; font-size: 18px; }
+.docs-cell span { font-size: 15px; line-height: 1.45; color: var(--text-2); }
+.docs-cell .docs-cell-wall { color: var(--text); font-weight: 600; border-top: 2px solid var(--plate); padding-top: 6px; }
+
+/* Can and can't */
+.docs-cancant { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
+.docs-chip { display: inline-block; font-stretch: var(--widest); font-weight: 800; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; background: var(--plate); color: var(--lime); padding: 3px 8px; border-radius: var(--r-chip); margin-bottom: 10px; }
+.docs-chip.no { background: var(--flood); color: #fff; }
+
+/* Under the hood: a hatch you open. */
+.docs-hatch { border: 2px dashed var(--border); border-radius: var(--r-plate); padding: var(--s2) var(--s3); background: transparent; }
+.docs-hatch summary { cursor: pointer; font-family: var(--f-mono); font-weight: 500; font-size: 14px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
+.docs-hatch[open] summary { margin-bottom: var(--s2); }
+.docs-hatch ul { margin: 0; padding-left: 1.2em; display: grid; gap: 10px; font-size: 15px; line-height: 1.6; }
+.docs-page .mono, .docs-tx { font-family: var(--f-mono); font-size: .92em; }
+.docs-tx { color: var(--lime-deep); font-weight: 500; }
+.docs-plate.dark .docs-tx, .docs-plate.dark a { color: var(--lime); }
+
+.docs-foot { display: grid; gap: var(--s2); margin-top: var(--s3); }
+.docs-next { display: grid; gap: 2px; background: var(--plate); color: var(--on-plate); text-decoration: none; padding: var(--s2) var(--s3); border-radius: var(--r-plate); font-stretch: var(--wide); font-weight: 800; font-size: 20px; justify-self: start; }
+.docs-next span { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--lime); }
+.docs-verified { font-size: 13px; color: var(--text-2); margin: 0; }
+.docs-verified a { color: var(--text-2); }
+
+@media (max-width: 860px) {
+  .docs-top { padding: 12px var(--s2); flex-wrap: wrap; }
+  .docs-readout { display: none; }
+  .docs-open { margin-left: auto; }
+  .docs-body { grid-template-columns: 1fr; padding: var(--s3) var(--s2) var(--s6); gap: var(--s3); }
+  .docs-rail { position: static; grid-template-columns: 1fr; }
+  .docs-lead { font-size: 19px; }
+  .docs-plate { padding: var(--s2); }
+  .docs-hullrow, .docs-cancant { grid-template-columns: 1fr; }
+}

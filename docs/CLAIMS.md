@@ -30,7 +30,7 @@ Checked 28 November 2026.
 | A payment over the phone-signed walls seals the account in the same transaction | Tripwire seal in `spend`; round 22 tx `0x687fb72d…878b` (README proof table) |
 | Tripwire triggers: a held payment, a laptop payment in quiet hours, 3 laptop payments within 10 minutes | `tripwire`, `BURST_COUNT = 3`, `BURST_MS` in `app/server/pilot.ts` |
 | The tripwire closes every wall to zero; only a phone signature reopens it | `CLOSED` in `app/server/pilot.ts`; `approve-reopen` in `app/functions/pilot.ts` |
-| Live: held just before midnight in quiet hours, tripwire about a minute later | Round 30: held tx confirmed 14:48:28 UTC, tripwire 14:49:27 UTC (block times of the two transactions); tripwire tx `BF333A249921DFDDEDC9CE63D4DDB2079531F8A6A1C61E1974727EE8636B6AE7` |
+| Live: held just before midnight in quiet hours, tripwire about a minute later | Round 30 block times: held 14:48:26 UTC, tripwire 14:49:22 UTC, 56 seconds apart; tripwire tx `BF333A249921DFDDEDC9CE63D4DDB2079531F8A6A1C61E1974727EE8636B6AE7` |
 | The tripwire runs every 5 minutes and when the app is opened | `.github/workflows/pilot-tick.yml` (`*/5 * * * *`); `tickPilot` in `app/src/screens/Pilot.tsx` |
 | "I didn't ask for this" refuses and seals from the phone | `app/src/screens/Phone.tsx` (refuse, then `Seal`) |
 | "Send everything to my recovery account" sends Everyday and Savings there | Break-glass sheet in `app/src/screens/Phone.tsx` |
